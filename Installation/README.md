@@ -2,4 +2,4 @@
 
 ## Installation Anaconda
 ### Windows
-https://www.anaconda.com/products/individual
+>> https://repo.anaconda.com/archive/Anaconda3-2021.11-Windows-x86_64.exe
