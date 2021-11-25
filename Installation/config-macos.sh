@@ -7,5 +7,6 @@ unzip instantclient-basic-macos.x64-19.8.0.0.0dbru.zip
 ls ~/instantclient_19_8
 
 cat <<FIN_FICHIER >> ~/.profile
-export LD_LIBRARY_PATH=~/instantclient_21_4:\$LD_LIBRARY_PATH
+LD_LIBRARY_PATH=~/instantclient_19_8:\$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH
 FIN_FICHIER
