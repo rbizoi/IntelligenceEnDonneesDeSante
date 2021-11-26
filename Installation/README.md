@@ -14,6 +14,8 @@
 ### Windows
 curl -s https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/Installation/config-windows.cmd
 
+curl --output config-windows.cmd --url https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/Installation/config-windows.cmd
+
 ### Linux
 curl -s https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/Installation/config-linux.sh
 
@@ -21,3 +23,5 @@ curl --output config-linux.sh --url https://raw.githubusercontent.com/rbizoi/Int
 
 ### MacOS
 curl -s https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/Installation/config-macos.sh
+
+curl --output config-macos.sh --url https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/Installation/config-macos.sh
