@@ -17,5 +17,7 @@ curl -s https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/ma
 ### Linux
 curl -s https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/Installation/config-linux.sh
 
+curl --output config-linux.sh --url https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/Installation/config-linux.sh
+
 ### MacOS
 curl -s https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/Installation/config-macos.sh
