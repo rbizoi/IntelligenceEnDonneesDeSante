@@ -1,3 +1,3 @@
-# Bio-informatique et intelligence artificielle 
+# Bio-informatique et intelligence artificielle
 
-<img src="https://raw.githubusercontent.com/rbizoi/Ecole-IA-Strasbourg/master/images/style_transfer_result_at_iteration_19.png" width="512">
+<img src="https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/images/bioinformatique.png" width="512">
