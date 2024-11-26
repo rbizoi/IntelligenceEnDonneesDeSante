@@ -9,7 +9,7 @@
 <img src="https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/refs/heads/main/images/anaconda.png" width="512">
 
 
-https://www.anaconda.com/download
+https://www.anaconda.com/download/success
 
 ## Environnement Python
 
