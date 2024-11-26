@@ -1,0 +1,135 @@
+---
+title: "Connexion base de donnees PostgreSQL"
+author: "Razvan BIZOÏ"
+date: "2024-11-23"
+output:
+  html_document:
+    number_sections: false
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Connexion à la base de données PostgreSQL `Cours`
+
+```{r librairies}
+library(RPostgres)
+library(DBI)
+library(DT)
+```
+
+
+![fig schema](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+# Connexion à la base de données PostgreSQL `Cours`
+
+```{r, echo=FALSE}
+  host=''
+  port=''
+  dbname=''
+  user=''
+  password=''
+```
+
+
+```{r, echo=TRUE}
+library(RPostgres)
+library(DBI)
+
+connection <- dbConnect(RPostgres::Postgres(), host=host, port=port, dbname=dbname, user=user, password=password)
+
+```
+
+
+## Lecture donnees
+
+```{r requette01, echo=FALSE}
+requette <- dbSendQuery(connection, "SELECT * FROM categories")
+
+donnees <- dbFetch(requette)
+
+dbHasCompleted(requette)
+dbClearResult(requette)
+```
+
+```{r affichage01}
+
+datatable(donnees,options = list(pageLength = 12, autoWidth = TRUE))
+
+```
+
+
+
+```{r requette02}
+requette <- dbSendQuery(connection, "
+     select nom_produit, quantite, code_categorie                
+     from produits                                               
+     where ( QUANTITE like '24%' or QUANTITE like '32%' )        
+       and ( QUANTITE like '%carton%' or                         
+             QUANTITE like '%pièces%' or                         
+             QUANTITE like '%bouteilles%')                       
+       and code_categorie in (1,4,8) 
+                        ")
+
+donnees <- dbFetch(requette)
+
+dbHasCompleted(requette)
+dbClearResult(requette)
+
+```
+
+
+
+```{r affichage02}
+
+datatable(donnees,options = list(pageLength = 12, autoWidth = TRUE))
+
+```
+
+# Connexion à la base de données PostgreSQL `HealthCare`
+
+![fig schema](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/refs/heads/main/images/healthcare.png)
+
+```{r, echo=FALSE}
+  host=''
+  port=''
+  dbname=''
+  user=''
+  password=''
+```
+
+```{r, echo=TRUE}
+library(RPostgres)
+library(DBI)
+
+connection <- dbConnect(RPostgres::Postgres(), host=host, port=port, dbname=dbname, user=user, password=password)
+
+```
+
+
+## Lecture donnees
+
+```{r requette03}
+requette <- dbSendQuery(connection, "
+                               select patient_id, date_naissance, gender, alzheimer, heartfailure, kidneydisease
+                               from patients limit 20
+                        ")
+
+donnees <- dbFetch(requette)
+
+dbHasCompleted(requette)
+dbClearResult(requette)
+```
+
+```{r affichage03}
+
+datatable(donnees,options = list(pageLength = 12, autoWidth = TRUE))
+
+```
+
