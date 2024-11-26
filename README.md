@@ -13,18 +13,28 @@ https://www.anaconda.com/download/success
 
 ## Environnement Python
 
+### Windows
 ```
-conda activate root
-conda info --envs
-conda update -n base -c defaults conda
-python -m pip install --upgrade pip
-conda install scikit-learn-intelex
+conda create -n cours python==3.10 ipython ipython-sql jupyter notebook numpy==1.23.5 pandas pyyaml==5.4.1 pyarrow scikit-image scikit-learn matplotlib seaborn  tifffile portpicker biopython Flask==2.0.2 Flask-Caching==1.10.1 Flask-Compress==1.10.1 flatbuffers  redis colour pydot pygraphviz pyyaml imgaug tifffile imagecodecs pyspark sqlalchemy
 
-conda remove -n spark3 --all -y
+conda activate cours
+# conda remove -n cours --all -y
 
-conda create -n spark3 python==3.10 pyspark ipython ipython-sql jupyter notebook numpy pandas pyarrow scikit-image scikit-learn scikit-learn-intelex seaborn tifffile portpicker  biopython flatbuffers  redis colour pydot pygraphviz pyyaml imgaug tifffile imagecodecs lightgbm xgboost -y
-conda activate spark3
+pip install ipython-sql sql psycopg2
+pip uninstall matplotlib seaborn
+pip install matplotlib seaborn opencv-python-headless
+```
 
-pip install opencv-python kaggle pydot pydicom dash dash-bootstrap-components dash-core-components dash-html-components dash-table dash-draggable dash-cytoscape dash_daq Pillow jupyter_dash imagecorruptions imblearn sql sqlalchemy==1.4 psycopg2 openpyxl cx_oracle
+### Linux
 
 ```
+conda create -p /home/utilisateur/anaconda3/envs/cours python==3.10 ipython ipython-sql jupyter notebook numpy==1.23.5 pandas pyyaml==5.4.1 pyarrow scikit-image scikit-learn matplotlib seaborn  tifffile portpicker biopython Flask==2.0.2 Flask-Caching==1.10.1 Flask-Compress==1.10.1 flatbuffers  redis colour pydot pygraphviz pyyaml imgaug tifffile imagecodecs pyspark sqlalchemy
+
+conda activate cours
+# conda remove -n cours --all -y
+
+pip install ipython-sql sql psycopg2
+pip uninstall matplotlib seaborn
+pip install matplotlib seaborn opencv-python-headless
+```
+
