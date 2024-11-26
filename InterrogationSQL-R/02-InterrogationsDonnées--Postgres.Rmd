@@ -1,0 +1,398 @@
+---
+title: "L’interrogation des données PostgreSQL"
+author: "Razvan BIZOÏ"
+date: "2024-11-23"
+output:
+  html_document:
+    number_sections: false
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Librairies nécessaires
+
+```{r librairies}
+library(RPostgres)
+library(DBI)
+library(DT)
+```
+
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+# Connexion à la base de données PostgreSQL `Cours`
+
+```{r, echo=FALSE}
+  host=''
+  port=''
+  dbname=''
+  user=''
+  password=''
+```
+
+```{r, echo=TRUE}
+library(RPostgres)
+library(DBI)
+
+connection <- dbConnect(RPostgres::Postgres(), host=host, port=port, dbname=dbname, user=user, password=password)
+
+```
+
+# Projection
+
+>>  `SELECT [ ALL | DISTINCT ]`<br>
+>>       `{ [{ NOM_TABLE | ALIAS2 }.]* ,`<br>
+>>       `  [ [{NOM_TABLE |ALIAS2}.]COLONNE1 [AS] ALIAS1[,...]}`<br>
+>>  `FROM NOM_TABLE ALIAS2` <br>
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                select fonction 
+                from employes
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+datatable(donnees,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+## Distinct 
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT DISTINCT FONCTION 
+                FROM EMPLOYES
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+datatable(donnees,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+# Constantes
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT 0 as c1, -1234567890 as c2, +1234567890 as c3, -123.456 as c4, +123.456 as c5, -1E+13 as c6
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT -123 as c1, 456 as c2, +123 as c3, 456 as c4,-1E+13 as c5
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT now() as Date
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+# Opérateur de concaténation
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+SELECT 
+    NO_EMPLOYE||' -- '||NOM||' -- '||PRENOM||' -- '||DATE_NAISSANCE  ListeEmployés,
+    concat(NO_EMPLOYE,' -- ',NOM,' -- ',PRENOM)  ListeEmployés
+FROM EMPLOYES
+FETCH NEXT 5 ROWS ONLY
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+# Opérateurs arithmétiques
+
+```{r}
+requette <- dbSendQuery(connection, '
+                        
+SELECT 
+    NOM_PRODUIT "Produit", 
+    PRIX_UNITAIRE*UNITES_STOCK "Stock",
+    UNITES_COMMANDEES*12 "Commandes" 
+FROM PRODUITS
+FETCH NEXT 5 ROWS ONLY
+                        
+                        ')
+                        
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, '
+                        
+              SELECT 
+                  NOM,
+                  DATE_NAISSANCE,
+                  DATE_NAISSANCE+1 "Jour 1",
+                  DATE_NAISSANCE-1 "Jour -1",
+                  extract(days from  (now()-DATE_NAISSANCE))/365 "jours" 
+              FROM EMPLOYES 
+              FETCH NEXT 5 ROWS ONLY
+                        
+                        ')
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# NULL - valeurs non renseignées 
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT NOM, 
+                      SALAIRE, 
+                      COMMISSION, 
+                      SALAIRE+COMMISSION as revenu  
+                FROM EMPLOYES
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+head(donnees,12)
+```
+
+# Fonction `COALESCE`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, 
+                     SALAIRE, 
+                     COMMISSION, 
+                     COALESCE(COMMISSION,0) COMMISSION,
+                     SALAIRE + COALESCE(COMMISSION,0) as revenu
+              FROM EMPLOYES
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+head(donnees,12)
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+SELECT SOCIETE, 
+       COALESCE(FAX, 'Non affecté') as Fax
+FROM CLIENTS
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+head(donnees,12)
+```
+
+# Tri du résultat d'une requête
+
+
+>> `SELECT [ALL | DISTINCT]{*,[EXPRESSION1 [AS] ALIAS1[,...]}`<br>
+>> `FROM NOM_TABLE`<br>
+>> `ORDER BY`<br>
+>> `      [NOM_COLONNE1|ALIAS1|POSITION1|EXPRESSION1][ASC|DESC] [NULLS {FIRST|LAST}],`<br>
+>> `      [NOM_COLONNE2|ALIAS2|POSITION2|EXPRESSION2][ASC|DESC] [NULLS {FIRST|LAST}]`<br>
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, 
+                     PRENOM, 
+                     FONCTION 
+              FROM EMPLOYES 
+              ORDER BY NOM
+
+                        ")
+
+donnees <- dbFetch(requette)
+
+dbHasCompleted(requette)
+dbClearResult(requette)
+
+datatable(donnees,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT 
+              NOM||' '||PRENOM as Employé, 
+              FONCTION 
+              FROM EMPLOYES 
+              ORDER BY NOM||' '||PRENOM ASC
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+datatable(donnees,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM_PRODUIT, 
+                    NO_FOURNISSEUR, 
+                    CODE_CATEGORIE 
+              FROM PRODUITS
+              ORDER BY NO_FOURNISSEUR, CODE_CATEGORIE DESC
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+head(donnees,20)
+```
+# Limitation d’enregistrements
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT CODE_CATEGORIE,
+                     NOM_CATEGORIE 
+              FROM CATEGORIES 
+                         FETCH FIRST 6 ROWS ONLY
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT CODE_CATEGORIE,
+                     NOM_CATEGORIE 
+              FROM CATEGORIES 
+                      OFFSET 5 ROWS FETCH NEXT 3 ROWS ONLY
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM_PRODUIT, 
+                     UNITES_STOCK 
+              FROM PRODUITS 
+              ORDER BY UNITES_STOCK DESC NULLS LAST 
+              FETCH NEXT 5 ROWS ONLY
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                                      
+              SELECT NO_COMMANDE,
+                     REF_PRODUIT,
+                     QUANTITE,
+                     PRIX_UNITAIRE
+              FROM DETAILS_COMMANDES 
+                      FETCH NEXT 5 ROWS ONLY
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+# `Atelier` -- Interrogation des données
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+
+## Projection
+
+Écrivez les requêtes vous permettant d’afficher :
+
+1. Le nom, le prénom et la date de naissance de tous les employés de la société.
+1. Le nom de la société, la ville et le pays de tous les fournisseurs.
+1. La fonction de tous les employés.
+1. Toutes les fonctions des employés de l’entreprise, chaque fonction doit être affichée une seule fois.
+1. La liste des localités dans lesquelles la société a au moins un client.
+
+
+## Opérateurs
+
+Créez les requêtes vous permettant d’afficher :
+
+1. Les produits commercialisés, la valeur du stock par produit et la valeur des produits commandés. Dans la table `PRODUITS`, vous trouvez les champs `UNITES_STOCK` et `UNITES_COMMANDEES` que vous multipliez par le `PRIX_UNITAIRE` pour retrouver les valeurs des deux stocks.
+1. Le nom, le prénom, l’âge et l’ancienneté des employés, dans la société.
+1. Le numéro de la commande, le temps écoulé entre la commande et la livraison de celle-ci ainsi que les frais de port.
+
+## Les ordres de tri
+
+1. Les employés par ordre alphabétique.
+1. Les employés depuis le plus récemment embauché jusqu’au plus ancien.
+1. Les fournisseurs dans l’ordre alphabétique de leur pays et ville de résidence.
+1. Les employés par ordre alphabétique de leur fonction et du plus grand salaire au plus petit.
+1. Les employés dans l’ordre de leur commission.
+
+
+
+
