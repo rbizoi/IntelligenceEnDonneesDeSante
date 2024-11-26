@@ -6,7 +6,7 @@
 
 ## Anaconda 
 
-<img src="https://github.com/rbizoi/PythonFormation/blob/main/images/anaconda.png" width="512">
+<img src="https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/refs/heads/main/images/anaconda.png" width="512">
 
 
 https://www.anaconda.com/download
