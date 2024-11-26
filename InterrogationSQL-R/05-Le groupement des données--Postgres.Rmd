@@ -1,0 +1,374 @@
+---
+title: "Le groupement des données PostgreSQL"
+author: "Razvan BIZOÏ"
+date: "2024-11-23"
+output:
+  html_document:
+    number_sections: false
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Librairies nécessaires
+
+```{r librairies,results='hide'}
+library(RPostgres)
+library(DBI)
+library(DT)
+
+library(tidyverse)
+library(nanoparquet)
+
+library(reticulate)
+rm(list=ls())
+```
+
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+# Connexion à la base de données PostgreSQL `Cours`
+
+```{r, echo=FALSE}
+  host=''
+  port=''
+  dbname=''
+  user=''
+  password=''
+```
+
+```{r, echo=TRUE}
+
+connection <- dbConnect(RPostgres::Postgres(), host=host, port=port, dbname=dbname, user=user, password=password)
+
+```
+
+# Fonctions d’agrégat
+
+## `SUM`
+
+```{r,results='hide'}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT SUM(SALAIRE),SUM(COMMISSION) FROM EMPLOYES
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+```
+```{r}
+donnees
+```
+
+## `AVG`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT AVG(COMMISSION),AVG(COALESCE(COMMISSION,0)) FROM EMPLOYES
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `MIN`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT MIN(UNITES_STOCK) MIN_STOCK, MIN(UNITES_COMMANDEES) MIN_COMM, MIN(NOM_PRODUIT) MIN_NOM FROM PRODUITS
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `MAX`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT MAX(SALAIRE), MAX(COMMISSION), MAX(DATE_NAISSANCE) MAX_DATE, MAX(NOM) FROM EMPLOYES
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `COUNT`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT COUNT(*), COUNT(FONCTION), COUNT(DISTINCT FONCTION), COUNT(COMMISSION) FROM EMPLOYES
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `STDDEV` et `STDDEV_SAMP` `STDDEV_POP` `VARIANCE` et `VAR_SAMP` `VAR_POP`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT AVG(SALAIRE) MOYENNE, 
+                     STDDEV_POP(SALAIRE) STDDEV_POP,
+                     STDDEV_SAMP(SALAIRE) STDDEV_SAMP
+              FROM EMPLOYES
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT VAR_POP(SALAIRE) VAR_POP,
+                     VAR_SAMP(SALAIRE) VAR_SAMP,
+                     VARIANCE(SALAIRE) VARIANCE
+              FROM EMPLOYES
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# Le groupe
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/M06-03.png)
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT FONCTION, SUM(SALAIRE) 
+              FROM EMPLOYES 
+              GROUP BY FONCTION 
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NO_FOURNISSEUR, 
+                     CODE_CATEGORIE, 
+                     SUM(UNITES_STOCK) SUM_STOCK,
+                     COUNT(CODE_CATEGORIE) NB_CATEG 
+              FROM PRODUITS 
+              GROUP BY NO_FOURNISSEUR, CODE_CATEGORIE 
+              ORDER BY NO_FOURNISSEUR, CODE_CATEGORIE 
+              FETCH FIRST 10 ROWS ONLY 
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# La sélection de groupe
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                  SELECT NO_EMPLOYE, 
+                         TO_CHAR(DATE_COMMANDE,' YYYY ') Année, 
+                         TO_CHAR(SUM(PORT),'99G999D99')  Port  
+                  FROM COMMANDES 
+                  WHERE DATE_COMMANDE > '2011-01-01' AND NO_EMPLOYE <= 30 
+                  GROUP BY NO_EMPLOYE, TO_CHAR(DATE_COMMANDE,' YYYY ') 
+                  HAVING SUM(PORT) > 5000 
+                  ORDER BY  SUM(PORT) DESC
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# Atelier 1 -- Groupement des données
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+## Les fonctions d’agrégat
+
+Écrivez les requêtes vous permettant d’afficher :
+
+1. La valeur totale des produits en stock et la valeur totale des produits commandés.
+1. La valeur totale des produits vendus et le total du chiffre d’affaire, la valeur totale des produits vendus moins la remise. Le champ REMISE représente un pourcentage de remise.
+1. La masse salariale.
+
+## Le groupement des données
+
+Écrivez les requêtes permettant d’afficher :
+
+1. La masse salariale pour chaque fonction des employés.
+1. Le nombre des commandes et la somme des frais de port pour chaque client et par année et par mois.
+1. La somme totale des produits en stock et la somme totale des produits commandés par fournisseur et par catégorie des produits.
+
+## La sélection de groupe
+
+Écrivez les requêtes permettant d’afficher :
+
+1. La somme des produits en stock et la somme des produits commandés pour les fournisseurs qui ont un numéro compris entre 3 et 6 et qui vendent au moins trois catégories de produits.
+1. La somme totale des produits vendus et la somme du chiffre d’affaire pour les commandes qui comportent plus de 50 produits.
+1. Le nombre des commandes et la somme des frais de port pour chaque client et par année et par mois. Il faut afficher uniquement les clients qui ont commandé plus de quinze fois dans le mois et dont leur frais de port dans le mois sont supérieurs à 1400€.
+
+
+# Les regroupements
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+            select co.no_commande, 
+                   co.code_client, 
+                   co.no_employe, 
+                   co.date_commande,
+                   cast(extract(year from co.date_commande) as int) annee, 
+                   cast(extract(QUARTER from co.date_commande) as int) trimestre, 
+                   cast(extract(month from co.date_commande) as int)  mois,
+                   co.date_envoi, 
+                   co.port, 
+                   co.livree, 
+                   co.acquitee, 
+                   co.annulee, 
+                   dc.ref_produit, 
+                   dc.prix_unitaire, 
+                   dc.quantite, 
+                   dc.remise, 
+                   dc.retourne,
+                   echange 
+            from commandes co 
+                 join details_commandes dc 
+                 on co.no_commande = dc.no_commande
+            --FETCH FIRST 100 ROWS ONLY
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees %>% write_parquet(
+  '../donnees/donnees_com_detcom.gzip',
+  compression = "gzip",
+  options = parquet_options()
+)
+
+datatable(head(donnees,24),options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/M06-03.png)
+
+# Group by DataFrame R 
+
+```{r}
+donnees <- read_parquet('../donnees/donnees_com_detcom.gzip', options = parquet_options())
+
+donnees %>% 
+  select (annee,trimestre,port,quantite) %>%
+  group_by(annee,trimestre) %>%
+  summarize(SumPort      = sum(port,na.rm = T),
+            SumQuantite  = sum(quantite,na.rm = T),
+            MeanPort     = mean(port,na.rm = T),
+            MeanQuantite = mean(quantite,na.rm = T),
+            SdPort     = sd(port,na.rm = T),
+            SdQuantite = sd(quantite,na.rm = T)
+            ) -> d_r
+  
+datatable(d_r,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+```{r}
+
+donnees %>% 
+  select (annee,trimestre,port,quantite, prix_unitaire, remise) %>%
+  mutate( ca_brut = quantite * prix_unitaire,
+          remise  = quantite * prix_unitaire * remise / 100,
+          ca_net  = ca_brut - remise
+          ) %>%
+  group_by(annee,trimestre) %>%
+  summarize(SumPort      = sum(port,na.rm = T),
+            SumQuantite  = sum(quantite,na.rm = T),
+            SumCA_brut   = sum(ca_brut,na.rm = T),
+            SumCA_net    = sum(ca_net,na.rm = T),
+            MeanPort     = mean(port,na.rm = T),
+            MeanRemise   = mean(remise,na.rm = T),
+            MeanQuantite = mean(quantite,na.rm = T),
+            SdPort       = sd(port,na.rm = T),
+            SdQuantite   = sd(quantite,na.rm = T),
+            SdRemise     = sd(remise,na.rm = T)
+            ) -> d_r
+  
+datatable(d_r,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+# Group by DataFrame Python 
+
+```{python}
+import pandas as pd
+donnees = pd.read_parquet('../donnees/donnees_com_detcom.gzip')
+d_p = donnees[['annee','trimestre', 'port', 'quantite']].groupby(['annee','trimestre']).agg(['sum','mean','std'])
+d_p.columns = [col[0]+'_'+col[1] if len(col[1]) > 0 else col[0] for col in d_p.columns]   
+d_p.reset_index(inplace=True)
+```
+
+
+```{r}
+datatable(py$d_p,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+
+```{python}
+
+df_dc = donnees.assign(
+                 ca_brut = donnees.quantite*donnees.prix_unitaire,
+                 remise  = donnees.quantite*donnees.prix_unitaire*donnees.remise/100,
+                 ca_net  = donnees.quantite*donnees.prix_unitaire - 
+                          (donnees.quantite*donnees.prix_unitaire*donnees.remise/100)                
+                ).groupby(
+                          ['annee','trimestre','mois']
+                         ).agg(
+                               {'quantite':['sum','mean'],
+                                'port'    :['sum','min','max','mean'],
+                                'ca_brut' :['sum'],
+                                'remise'  :['sum'],
+                                'ca_net'  :['sum'],
+                                 }).reset_index()
+                               
+df_dc.columns = [col[0]+'_'+col[1] if len(col[1]) > 0 else col[0] for col in df_dc.columns]          
+```
+
+
+```{r}
+datatable(py$df_dc,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+
+
+
