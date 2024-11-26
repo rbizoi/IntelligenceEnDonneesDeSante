@@ -1,0 +1,558 @@
+---
+title: "Les requêtes multi-tables PostgreSQL"
+author: "Razvan BIZOÏ"
+date: "2024-11-23"
+output:
+  html_document:
+    number_sections: false
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Librairies nécessaires
+
+```{r librairies}
+library(RPostgres)
+library(DBI)
+library(DT)
+
+library(tidyverse)
+library(nanoparquet)
+
+library(reticulate)
+
+rm(list=ls())
+```
+
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+# Connexion à la base de données PostgreSQL `Cours`
+
+```{r, echo=FALSE}
+  host=''
+  port=''
+  dbname=''
+  user=''
+  password=''
+```
+
+```{r, echo=TRUE}
+library(RPostgres)
+library(DBI)
+
+connection <- dbConnect(RPostgres::Postgres(), host=host, port=port, dbname=dbname, user=user, password=password)
+
+```
+
+# La jointure sans condition
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/produit_relationel.png)
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT (SELECT COUNT(*) FROM PRODUITS) as PRODUITS,
+                     (SELECT COUNT(*) FROM CATEGORIES) as CATEGORIES,
+                     (SELECT count(*) FROM PRODUITS CROSS JOIN CATEGORIES) CROSS_JOIN
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM_PRODUIT, NOM_CATEGORIE FROM PRODUITS CROSS JOIN CATEGORIES
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+datatable(donnees,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+# La jointure avec condition
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/jointure.png)
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT count(*)
+              FROM PRODUITS A 
+                   JOIN CATEGORIES B 
+                   ON A.CODE_CATEGORIE = B.CODE_CATEGORIE 
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT A.CODE_CATEGORIE CAT, 
+                     NOM_PRODUIT Produit,
+                     NOM_CATEGORIE Categorie 
+              FROM PRODUITS A 
+                   JOIN CATEGORIES B 
+                   ON A.CODE_CATEGORIE = B.CODE_CATEGORIE 
+              ORDER BY NOM_PRODUIT
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+datatable(donnees,options = list(pageLength = 10, autoWidth = TRUE))
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT C.NOM||' '||C.PRENOM Vendeur, 
+                     A.SOCIETE Client,
+                     B.DATE_COMMANDE Commande, 
+                     B.PORT Port 
+              FROM CLIENTS A 
+                   JOIN COMMANDES B 
+                        ON A.CODE_CLIENT = B.CODE_CLIENT 
+                   JOIN EMPLOYES C 
+                        ON B.NO_EMPLOYE  = C.NO_EMPLOYE 
+              WHERE  B.DATE_COMMANDE > make_date(2011,6,29)
+              FETCH FIRST 30 ROWS ONLY
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+datatable(donnees,options = list(pageLength = 10, autoWidth = TRUE))
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT DC.REF_PRODUIT, 
+                       COUNT( DISTINCT CO.NO_COMMANDE) COM 
+                FROM DETAILS_COMMANDES DC 
+                     JOIN PRODUITS PR 
+                          ON ( DC.PRIX_UNITAIRE BETWEEN PR.PRIX_UNITAIRE*0.95  
+                          AND PR.PRIX_UNITAIRE*1.05  
+                          AND PR.REF_PRODUIT = 57 ) 
+                     JOIN COMMANDES CO     
+                          ON  ( CO.NO_COMMANDE = DC.NO_COMMANDE 
+                               AND extract(year from CO.DATE_COMMANDE)   = 2011 ) 
+                     JOIN CLIENTS CL      
+                     ON  ( CO.CODE_CLIENT = CL.CODE_CLIENT AND CL.PAYS LIKE 'A%') 
+                GROUP BY DC.REF_PRODUIT
+                
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT (SELECT COUNT(*) FROM CLIENTS) as CLIENTS,
+                     (SELECT COUNT(*) FROM EMPLOYES) as EMPLOYES,
+                     (SELECT COUNT(*) FROM PRODUITS) as PRODUITS,
+                     (SELECT COUNT(*) FROM FOURNISSEURS) as FOURNISSEURS,
+                     (SELECT COUNT(*) FROM CATEGORIES) as CATEGORIES,
+                     (SELECT COUNT(*) FROM COMMANDES) as COMMANDES,
+                     (SELECT COUNT(*) FROM DETAILS_COMMANDES) as DETAILS_COMMANDES
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                  SELECT COUNT(*)                                      
+                  FROM CLIENTS CL                                      
+                       JOIN COMMANDES CO                               
+                          ON ( CL.CODE_CLIENT = CO.CODE_CLIENT)        
+                       JOIN EMPLOYES EM                                
+                          ON ( EM.NO_EMPLOYE = CO.NO_EMPLOYE)          
+                       JOIN DETAILS_COMMANDES DC                       
+                          ON ( CO.NO_COMMANDE = DC.NO_COMMANDE)        
+                       JOIN PRODUITS PR                                
+                          ON ( DC.REF_PRODUIT = PR.REF_PRODUIT)        
+                       JOIN FOURNISSEURS FR                            
+                          ON ( PR.NO_FOURNISSEUR = FR.NO_FOURNISSEUR ) 
+                       JOIN CATEGORIES CA                              
+                          ON ( PR.CODE_CATEGORIE = CA.CODE_CATEGORIE )
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# La jointure externe
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/M06-07.png)
+
+## `INNER JOIN`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                  SELECT COALESCE(C.VILLE,F.VILLE) VILLE,     
+                         COALESCE(C.SOCIETE,'-------') CLIENT,     
+                         COALESCE(F.SOCIETE,'-------') FOURNISSEUR
+                  FROM CLIENTS C INNER JOIN FOURNISSEURS F    
+                       ON C.VILLE = F.VILLE                   
+                  ORDER BY VILLE
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+datatable(donnees,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+## `LEFT OUTER JOIN`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                  SELECT COALESCE(C.VILLE,F.VILLE) VILLE,     
+                         COALESCE(C.SOCIETE,'-------') CLIENT,     
+                         COALESCE(F.SOCIETE,'-------') FOURNISSEUR
+                  FROM CLIENTS C LEFT OUTER JOIN FOURNISSEURS F    
+                       ON C.VILLE = F.VILLE                   
+                  ORDER BY VILLE
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+datatable(donnees,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+## `RIGHT OUTER JOIN`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                  SELECT COALESCE(C.VILLE,F.VILLE) VILLE,     
+                         COALESCE(C.SOCIETE,'-------') CLIENT,     
+                         COALESCE(F.SOCIETE,'-------') FOURNISSEUR
+                  FROM CLIENTS C RIGHT OUTER JOIN FOURNISSEURS F    
+                       ON C.VILLE = F.VILLE                   
+                  ORDER BY VILLE
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+datatable(donnees,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+## `FULL OUTER JOIN`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                  SELECT COALESCE(C.VILLE,F.VILLE) VILLE,     
+                         COALESCE(C.SOCIETE,'-------') CLIENT,     
+                         COALESCE(F.SOCIETE,'-------') FOURNISSEUR
+                  FROM CLIENTS C FULL OUTER JOIN FOURNISSEURS F    
+                       ON C.VILLE = F.VILLE                   
+                  ORDER BY VILLE
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+datatable(donnees,options = list(pageLength = 12, autoWidth = TRUE))
+```
+
+
+
+
+## Predicats
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                  SELECT COUNT(distinct co.no_employe) employes_commandes,
+                         COUNT(distinct em.no_employe) employes_total
+                  FROM COMMANDES CO                               
+                       RIGHT JOIN EMPLOYES EM                                
+                          ON ( EM.NO_EMPLOYE = CO.NO_EMPLOYE)          
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                  SELECT COUNT(distinct co.no_employe) employes_commandes,
+                         COUNT(distinct em.no_employe) employes_total
+                  FROM COMMANDES CO                               
+                       RIGHT JOIN EMPLOYES EM                                
+                          ON ( EM.NO_EMPLOYE = CO.NO_EMPLOYE)     
+                  WHERE CO.CODE_CLIENT = 'ALFKI'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                  SELECT COUNT(distinct co.no_employe) employes_commandes,
+                         COUNT(distinct em.no_employe) employes_total
+                  FROM COMMANDES CO                               
+                       RIGHT JOIN EMPLOYES EM                                
+                          ON ( EM.NO_EMPLOYE = CO.NO_EMPLOYE 
+                            AND CO.CODE_CLIENT = 'ALFKI' )     
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# Atelier 1 -- Les requêtes multi-tables
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+## Les équijointures
+
+Écrivez les requêtes vous permettant d’afficher :
+
+1. Le nom, le prénom et la société cliente pour les employés qui ont effectué une vente pour les clients de Paris.
+1. La société cliente, le nombre des produits commandés, la ville et le pays qui ont commandé plus de 115 références de produits au mois de mai 2011. (`EXTRACT(YEAR FROM DATE_COMMANDE)` et `EXTRACT(MONTH FROM DATE_COMMANDE)` ou `TO_CHAR(DATE_COMMANDE,'YYYYMM')`)
+1. Le nom de la catégorie du produit, la société fournisseur et le nom du produit, uniquement pour les produits des catégories 1, 4 et 7.
+1. La société cliente, la société fournisseur et leur ville pour les clients qui sont localisés dans une ville d’un fournisseur (Il s’agit d’une jointure entre la table `CLIENTS` et `FOURNISSEURS`).
+1. Les sociétés clientes qui ont commandé le produit `'Chai'`.
+
+
+
+## Les jointures externes
+
+Écrivez les requêtes permettant d’afficher :
+
+1. Tous les clients et le cumul des quantités vendues pour les clients qui ont passé des commandes au `01/mai/2011`. Affichez les enregistrements par ordre décroissant de cumul des commandes avec les valeurs `NULL` à la fin.
+1. Le nom, le prénom, la fonction de tous les employés, la somme des frais de port et le cumul des ventes (prix unitaire fois la quantité) pour les employés qui ont passé des commandes. Affichez les enregistrements par ordre décroissant de cumul des ventes avec les valeurs `NULL` à la fin.
+
+
+# Jointures DataFrame R 
+
+```{r}
+requette <- dbSendQuery(connection, "select * from commandes")
+commandes <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+commandes %>% write_parquet(
+  '../donnees/donnees_commandes.gzip',
+  compression = "gzip",
+  options = parquet_options()
+)
+
+requette <- dbSendQuery(connection, "select * from employes")
+employes <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+employes %>% write_parquet(
+  '../donnees/donnees_employes.gzip',
+  compression = "gzip",
+  options = parquet_options()
+)
+
+requette <- dbSendQuery(connection, "select * from clients")
+clients <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+clients %>% write_parquet(
+  '../donnees/donnees_clients.gzip',
+  compression = "gzip",
+  options = parquet_options()
+)
+
+requette <- dbSendQuery(connection, "select * from fournisseurs")
+fournisseurs <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+fournisseurs %>% write_parquet(
+  '../donnees/donnees_fournisseurs.gzip',
+  compression = "gzip",
+  options = parquet_options()
+)
+
+```
+
+## `INNER JOIN`
+
+```{r}
+clients %>%
+  transmute(ville = ville,
+            client = societe) %>%
+  inner_join(fournisseurs %>%  
+              transmute(ville = ville,
+                        fournisseur = societe)
+              ,by=c("ville" = "ville")) %>%
+  arrange( ville ) %>%
+  head(20) -> resultat
+```
+
+
+```{r}
+datatable(resultat,options = list(pageLength = 10, autoWidth = TRUE))
+```
+
+## `LEFT OUTER JOIN`
+
+```{r}
+clients %>%
+  transmute(ville = ville,
+            client = societe) %>%
+  left_join(fournisseurs %>%  
+              transmute(ville = ville,
+                        fournisseur = societe)
+              ,by=c("ville" = "ville")) %>%
+  arrange( ville ) %>%
+  head(20) -> resultat
+```
+
+
+```{r}
+datatable(resultat,options = list(pageLength = 10, autoWidth = TRUE))
+```
+
+## `RIGHT OUTER JOIN`
+
+
+```{r}
+clients %>%
+  transmute(ville = ville,
+            client = societe) %>%
+  right_join(fournisseurs %>%  
+              transmute(ville = ville,
+                        fournisseur = societe)
+              ,by=c("ville" = "ville")) %>%
+  arrange( ville ) %>%
+  head(20) -> resultat
+```
+
+
+```{r}
+datatable(resultat,options = list(pageLength = 10, autoWidth = TRUE))
+```
+
+## `FULL OUTER JOIN`
+
+```{r}
+clients %>%
+  transmute(ville = ville,
+            client = societe) %>%
+  full_join(fournisseurs %>%  
+              transmute(ville = ville,
+                        fournisseur = societe)
+              ,by=c("ville" = "ville")) %>%
+  arrange( ville ) %>%
+  head(20) -> resultat
+```
+
+
+```{r}
+datatable(resultat,options = list(pageLength = 10, autoWidth = TRUE))
+```
+
+## Jointures externes multiples R
+
+```{r}
+employes %>%
+  inner_join(commandes,by=c("no_employe" = "no_employe")) %>%
+  inner_join(clients,by=c("code_client" = "code_client")) %>%
+  distinct(no_employe) %>%
+  summarize( n = n())
+```
+
+```{r}
+employes %>%
+  left_join(commandes,by=c("no_employe" = "no_employe")) %>%
+  left_join(clients,by=c("code_client" = "code_client")) %>%
+  distinct(no_employe) %>%
+  summarize( n = n())
+```
+
+
+```{r}
+employes %>%
+  left_join(commandes,by=c("no_employe" = "no_employe")) %>%
+  inner_join(clients,by=c("code_client" = "code_client")) %>%
+  distinct(no_employe) %>%
+  summarize( n = n())
+```
+```{r}
+commandes %>%
+  inner_join(clients,by=c("code_client" = "code_client")) %>%
+  right_join(employes,by=c("no_employe" = "no_employe")) %>%
+  distinct(no_employe) %>%
+  summarize( n = n())
+```
+
+# Jointures DataFrame Python
+
+
+```{python}
+import pandas as pd 
+clients      = pd.read_parquet('../donnees/donnees_clients.gzip'
+                         )[['societe','ville']].rename(columns={'societe':'client'})
+fournisseurs = pd.read_parquet('../donnees/donnees_fournisseurs.gzip'
+                         )[['societe','ville']].rename(columns={'societe':'fournisseur'})
+```
+
+## `INNER JOIN`
+
+```{python}
+clients.merge(fournisseurs, on='ville', how='inner').head(10)
+```
+
+## `LEFT OUTER JOIN`
+
+```{python}
+clients.merge(fournisseurs, on='ville', how='left').head(10)
+```
+
+## `RIGHT OUTER JOIN`
+
+```{python}
+clients.merge(fournisseurs, on='ville', how='right').head(10)
+```
+
+## `FULL OUTER JOIN`
+
+```{python}
+clients.merge(fournisseurs, on='ville', how='outer').head(10)
+```
+
+
+
+
