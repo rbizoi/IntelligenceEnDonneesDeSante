@@ -1,0 +1,928 @@
+---
+title: "Les types de données PostgreSQL"
+author: "Razvan BIZOÏ"
+date: "2024-11-23"
+output:
+  html_document:
+    number_sections: false
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Librairies nécessaires
+
+```{r librairies}
+library(RPostgres)
+library(DBI)
+library(DT)
+```
+
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+# Connexion à la base de données PostgreSQL `Cours`
+
+```{r, echo=FALSE}
+  host=''
+  port=''
+  dbname=''
+  user=''
+  password=''
+```
+
+```{r, echo=TRUE}
+library(RPostgres)
+library(DBI)
+
+connection <- dbConnect(RPostgres::Postgres(), host=host, port=port, dbname=dbname, user=user, password=password)
+
+```
+
+# Types chaîne de caractères
+
+
+Les types de données chaîne de caractères disponibles sont :
+
+* `VARCHAR2` - Chaîne de caractères de longueur variable comprenant au maximum 4000 bytes.
+* `CHAR`     - Chaîne de caractères de longueur fixe avec L comprenant au maximum 2000 bytes.
+
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/refs/heads/main/InterrogationSQL/images/clients.png)
+
+## `LENGTH`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT code_client,
+                     societe,
+                     adresse,
+                     length(code_client) as length_code_client,
+                     length(societe) as length_societe,
+                     length(adresse) as length_adresse
+              FROM CLIENTS 
+              FETCH NEXT 5 ROWS ONLY
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `LOWER`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, LOWER(NOM) 
+              FROM EMPLOYES
+              FETCH NEXT 5 ROWS ONLY
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `UPPER`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, 
+                     UPPER(NOM) 
+              FROM EMPLOYES
+              FETCH NEXT 5 ROWS ONLY
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `INITCAP`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT INITCAP('LE LANGE_SQL ET pL/sQL pOUR PostgresSQL') FonctionINITCAP
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `LPAD` / `RPAD`
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, 
+                     LENGTH(NOM) LN, 
+                     LPAD(NOM,7,'*') L1,  
+                     LPAD(NOM,14,'&*#') L2, 
+                     LPAD(PRENOM,14) L3 
+              FROM EMPLOYES
+              FETCH NEXT 5 ROWS ONLY
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, 
+                     LENGTH(NOM) LN, 
+                     RPAD(NOM,7,'*') L1,  
+                     RPAD(NOM,14,'&*#') L2, 
+                     RPAD(PRENOM,14) L3 
+              FROM EMPLOYES
+              FETCH NEXT 5 ROWS ONLY
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+## `LTRIM` / `RTRIM`
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT LTRIM('                Chaîne') c1,
+                     LTRIM('***************Chaîne') c2,
+                     LTRIM('A2BD1AC3BCD4-Chaîne', 'ABCD-1234') c3, 
+                     RTRIM('                Chaîne                ') c4,
+                     RTRIM('***************Chaîne***************') c5,
+                     RTRIM('A2BD1AC3BCD4-Chaîne-A2BD1AC3BCD4', 'ABCD-1234') c6
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `SUBSTR`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, 
+                     SUBSTR(NOM,3,5)  S1, 
+                     SUBSTR(NOM,3,25) S2, 
+                     SUBSTR(NOM,3) S3 
+              FROM EMPLOYES 
+              FETCH NEXT 5 ROWS ONLY
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `INSTR`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT QUANTITE, 
+                     STRPOS(QUANTITE,'0' ) c1, 
+                     STRPOS(QUANTITE,'g') c2
+              FROM PRODUITS
+              FETCH NEXT 5 ROWS ONLY
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+## `REPLACE`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT REPLACE('JACK et JUE      ','J',  '') REPLACE1,
+                     REPLACE('JACK et JUE      ','J','BL') REPLACE2
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `ASCII`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT ASCII('A'),ASCII('a')
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# Atelier 1 -- Les chaînes de caractères
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+Écrivez les requêtes permettant d’afficher :
+
+1. Le nom et le prénom en majuscule concaténées avec un espace au milieu. Il faut prendre soin de ne pas dépasser une longueur maximum de 14 caractères.
+
+
+# Les fonctions numériques
+
+## `SIGN`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT SIGN(-10),SIGN(0),SIGN(20) 
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `ABS`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT ABS(-10),ABS(0),ABS(1) 
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+## `CEIL`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT CEIL(-10.23),CEIL(0),CEIL(20.23) 
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+## `FLOOR`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT FLOOR(-10.23),FLOOR(0),FLOOR(20.23) 
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+## `ROUND`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT ROUND(-10.2326,2),ROUND(10.2366,3),ROUND(-10.2326) 
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT ROUND(102356,-2),ROUND(102326,-3),ROUND(102326)
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `TRUNC`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT TRUNC(10.2326,2),TRUNC(10.2376,2), TRUNC(102826,-3),TRUNC(10.2326)
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# Atelier 2 -- Les chaînes de caractères
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+Écrivez les requêtes permettant d’afficher :
+
+1. Les employés et leur salaire journalier (salaire / 20) arrondi à l’entier inférieur.
+1. Les employés et leur salaire journalier (salaire / 20) arrondi à l’entier supérieur.
+1. Les produits commercialisés, la valeur du stock, les unités en stock fois le prix unitaire, arrondie à la centaine près.
+1. Les produits commercialisés, la valeur du stock, les unités en stock fois le prix unitaire, arrondie à la dizaine inférieure.
+1. Les employés et leur revenu annuel (salaire*12 + commission) arrondi à la centaine près.
+
+
+# Le traitement des dates
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT CURRENT_DATE, NOW(),STATEMENT_TIMESTAMP() 
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT CURRENT_TIME A, CURRENT_TIMESTAMP B, NOW() C
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+
+## Types intervalle
+* `INTERVAL YEAR [(P)] TO MONTH`
+* `INTERVAL DAY [(P)] TO SECOND [(P)]`
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT now() c1, 
+                     now() + INTERVAL '6' MONTH c2,
+                     now() + INTERVAL '2' YEAR c3,
+                     now() + INTERVAL '10-1' c4
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+## EXTRACT
+
+`EXTRACT (FORMAT FROM EXPRESSION)`
+
+Le format peut être une des valeurs suivantes : 
+
+`CENTURY`,`DAY`, `DECADE` , `DOW` , `DOY` , `EPOCH` , `HOUR` , `ISODOW` , `ISOYEAR` , `MICROSECONDS` , `MILLENNIUM` , `MILLISECONDS` , `MINUTE` , `MONTH` , `QUARTER` , `SECOND` , `TIMEZONE` , `TIMEZONE_HOUR` , `TIMEZONE_MINUTE` , `WEEK` , `YEAR`.
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT EXTRACT (DAY FROM DATE_EMBAUCHE) Jour,
+                     EXTRACT (DOW FROM DATE_EMBAUCHE) de_la_semaine,
+                     EXTRACT (ISODOW FROM DATE_EMBAUCHE) de_la_semaine_ISO,
+                     EXTRACT (DOY FROM DATE_EMBAUCHE) de_l_année
+              FROM EMPLOYES LIMIT 5
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT EXTRACT (ISOYEAR FROM DATE_EMBAUCHE) Année,
+                     EXTRACT (QUARTER FROM DATE_EMBAUCHE) Trimestre,
+                     EXTRACT (MONTH FROM DATE_EMBAUCHE) Mois,
+                     EXTRACT (WEEK FROM DATE_EMBAUCHE) Semaine
+              FROM EMPLOYES LIMIT 5
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `CAST`
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              select cast(now() + interval '1' month as date) d01, 
+                     now() + interval '1' month d02 
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+## `MAKE_DATE` et `MAKE_TIME`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              select make_date(2015,6,10), make_time(12,20,00) 
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## Arrondis des dates
+
+>> <table style="text-align:left;">
+>> <tr>
+>>      <th  style="text-align:left;background-color:#053061;color:white;">Format  </th>
+>>      <th  style="text-align:left;background-color:#053061;color:white;">Précision pour ROUND et TRUNC  </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">CC, SCC                             </th>
+>> <th  style="text-align:left;">Le siècle                                 </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">SYYYY, YYYY, YEAR, SYEAR, YYY, YY, Y</th>
+>> <th  style="text-align:left;">Année                                     </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">IYYY, IY, IY, I                     </th>
+>> <th  style="text-align:left;">Année ISO                                 </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">Q                                   </th>
+>> <th  style="text-align:left;">Le numéro du trimestre                    </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">MONTH, MON, MM, RM                  </th>
+>> <th  style="text-align:left;">Le mois                                   </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">WW                                  </th>
+>> <th  style="text-align:left;">Numéro de la semaine dans l'année         </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">IW                                  </th>
+>> <th  style="text-align:left;">Semaine de l'année selon le standard ISO  </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">W                                   </th>
+>> <th  style="text-align:left;">Numéro de la semaine dans le mois         </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">DDD                                 </th>
+>> <th  style="text-align:left;">Numéro de jour dans l'année, de 1 à 366   </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">DD                                  </th>
+>> <th  style="text-align:left;">Numéro de jour dans le mois, de 1 à 31    </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">J                                   </th>
+>> <th  style="text-align:left;">Numéro de jour de la semaine, de 1 à 7    </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">DAY, DY, D                          </th>
+>> <th  style="text-align:left;">Le jour de la semaine                     </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">HH, HH12, HH24                      </th>
+>> <th  style="text-align:left;">Heure                                     </th>
+>> </tr>
+>> <tr>
+>> <th  style="text-align:left;">MI                                  </th>
+>> <th  style="text-align:left;">Minute                                    </th>
+>> </tr>
+>> </table>
+
+## `DATE_TRUNC`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              select DATE_TRUNC('month',now()),
+                     date_trunc('quarter',now()),
+                     date_trunc('year',now()), 
+                     date_trunc('week',now()),
+                     date_trunc('day',now())
+                     
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+## `MAKE_DATE` et `MAKE_TIME`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              select make_date(2015,6,10), make_time(12,20,00) 
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+# Atelier 3 -- Le traitement des dates
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+Écrivez les requêtes permettant d’afficher :
+
+1. La date du prochain dimanche (à ce jour).
+1. Les dates du premier et du dernier jour du mois en cours.
+1. La date du premier jour du trimestre (format ‘Q’).
+1. Le nom, la date de fin de période d’essai (3 mois) et leur ancienneté à ce jour exprimé en mois pour tous les employés.
+1. Le nom et le jour de leur première paie (dernier jour du mois de leur embauche).
+
+
+# Les conversions SQL
+
+## Conversions implicites
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT RPAD(NOM,15)||' '||DATE_NAISSANCE||' '||SALAIRE * '1.1' Employe 
+                FROM EMPLOYES
+                FETCH FIRST 5 ROWS ONLY 
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `TO_CHAR` et `TO_DATE`
+
+>>  <table style="text-align:left;">
+>>  <tr>
+>>      <th  style="text-align:left;background-color:#053061;color:white;">Format	                                                              </th>
+>>      <th  style="text-align:left;background-color:#053061;color:white;">Description                                                             </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">MM	                                                                  </th>
+>>      <th  style="text-align:left;">Numéro du mois dans l'année                                             </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">RM	                                                                  </th>
+>>      <th  style="text-align:left;">Numéro du mois dans l'année en chiffres romains                         </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">MON	                                                                  </th>
+>>      <th  style="text-align:left;">Le nom du mois abrégé sur trois lettres                                 </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">MONTH	                                                                  </th>
+>>      <th  style="text-align:left;">Le nom du mois écrit en entier                                          </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">DDD	                                                                  </th>
+>>      <th  style="text-align:left;">Numéro du jour dans l'année, de 1 à 366                                 </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">DD	                                                                  </th>
+>>      <th  style="text-align:left;">Numéro du jour dans le mois, de 1 à 31                                  </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">D	                                                                      </th>
+>>      <th  style="text-align:left;">Numéro du jour dans la semaine, de 1 à 7                                </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">DY	                                                                  </th>
+>>      <th  style="text-align:left;">Le nom de la journée abrégé sur trois lettres                           </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">DAY	                                                                  </th>
+>>      <th  style="text-align:left;">Le nom de la journée écrit en entier                                    </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">YYYY	                                                                  </th>
+>>      <th  style="text-align:left;">Année complète sur quatre chiffres                                      </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">YYY	                                                                  </th>
+>>      <th  style="text-align:left;">Les trois derniers chiffres de l'année                                  </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">RR	                                                                  </th>
+>>      <th  style="text-align:left;">Deux derniers chiffres de l'année de la date courante                   </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">CC	                                                                  </th>
+>>      <th  style="text-align:left;">Le siècle                                                               </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">YEAR	                                                                  </th>
+>>      <th  style="text-align:left;">Année écrite en lettres: TWO THOUSAND (option apparemment non francisée)</th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">Q	                                                                      </th>
+>>      <th  style="text-align:left;">Le numéro du trimestre                                                  </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">WW	                                                                  </th>
+>>      <th  style="text-align:left;">Numéro de la semaine dans l'année                                       </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">IW	                                                                  </th>
+>>      <th  style="text-align:left;">Semaine de l'année selon le standard ISO                                </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">W	                                                                      </th>
+>>      <th  style="text-align:left;">Numéro de la semaine dans le mois                                       </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">J	                                                                      </th>
+>>      <th  style="text-align:left;">Calendrier Julien -jours écoulés depuis le 31 décembre 4713 av. J.-C    </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">HH	                                                                  </th>
+>>      <th  style="text-align:left;">Heure du jour, toujours de format 1-12                                  </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">HH24	                                                                  </th>
+>>      <th  style="text-align:left;">Heure du jour, sur 24 heures                                            </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">MI	                                                                  </th>
+>>      <th  style="text-align:left;">Minutes écoulées dans l'heure                                           </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">SS	                                                                  </th>
+>>      <th  style="text-align:left;">Secondes écoulées dans une minute                                       </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">SSSSS	                                                                  </th>
+>>      <th  style="text-align:left;">Secondes écoulées depuis minuit, toujours 0-86399                       </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">AM, PM	                                                              </th>
+>>      <th  style="text-align:left;">Affiche AM ou PM selon qu'il s'agit du matin ou de l'après-midi         </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">FM	                                                                  </th>
+>>      <th  style="text-align:left;">Les valeurs sont renvoyées sans les caractères blanc avant ou après     </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">TZH	                                                                  </th>
+>>      <th  style="text-align:left;">Affiche l’heure du fuseau horaire                                       </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">TZM	                                                                  </th>
+>>      <th  style="text-align:left;">Affiche les minutes du fuseau horaire                                   </th>
+>> </tr>
+>>  <tr>
+>>      <th  style="text-align:left;">TZR	                                                                  </th>
+>>      <th  style="text-align:left;">Affiche le fuseau horaire complet                                       </th>
+                                                                                                              </th>
+>> </tr>
+>> </table>
+
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT TO_CHAR( now(),'D DD DDD DAY Day') 
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT TO_CHAR( now(),'MM MON Mon MONTH Month') 
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT TO_CHAR( now(),'DD/MM/YYYY Q WW iW W HH:MM:SS SSSS')
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT TO_CHAR(now(),'DD/MM/YYYY HH24:MM:SS SSSS')
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT TO_CHAR(now()+INTERVAL '1' HOUR,'HH:MM:SS AM'), 
+                       TO_CHAR(now()+INTERVAL '1' HOUR,'HH24:MM:SS ')
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `TO_NUMBER`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT TO_NUMBER('-1234567890','S9999999999') Colonne01,
+                       TO_NUMBER('+1234567890','S9999999999') Colonne02,
+                       TO_NUMBER('+123.456'   ,'S999.999'   ) Colonne03,
+                       TO_NUMBER('-123.456'   ,'999.999'    ) Colonne04
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `TO_DATE`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT TO_DATE( '10/04/2021','DD/MM/YYYY') TO_DATE01, 
+                       TO_DATE( '12/10/2021 20:12:00', 'DD/MM/YYYY HH24:MI:SS') TO_DATE02
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `CASE`
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT 
+                          NOM||' '||PRENOM Employé, 
+                          FONCTION,
+                          CASE FONCTION
+                              WHEN 'Président'  THEN
+                                   SALAIRE*1.05
+                              WHEN 'Vice-Président'  THEN
+                                   SALAIRE*1.1
+                              WHEN 'Chef des ventes' THEN
+                                   SALAIRE*1.2
+                              WHEN 'Représentant(e)' THEN
+                                   SALAIRE*1.1 + COMMISSION
+                              ELSE
+                                   SALAIRE
+                          END Salaire
+                      FROM EMPLOYES
+                      ORDER BY SALAIRE DESC 
+                      FETCH FIRST 15 ROWS ONLY
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT 
+                    NOM, 
+                    FONCTION, 
+                    SALAIRE,
+                    CASE 
+                        WHEN FONCTION = 'Assistante commerciale'
+                        THEN '10%'
+                        WHEN FONCTION = 'Représentant(e)' AND
+                          SALAIRE between 6000 AND 6400 
+                        THEN '30%'
+                        WHEN FONCTION = 'Représentant(e)' AND
+                          SALAIRE < 6000
+                        THEN '20%'
+                        ELSE
+                          'Pas d''augmentation'
+                    END Salaire01 
+                FROM EMPLOYES 
+                ORDER BY SALAIRE DESC 
+                OFFSET 80 ROWS FETCH NEXT 25 ROWS ONLY
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## `NULLIF`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT 
+                      COMMISSION, 
+                      NULLIF(COMMISSION, 1000) RETOUR1,
+                      NOM||' '||PRENOM Employé, 
+                      NULLIF(LENGTH(NOM),
+                      LENGTH(PRENOM)) RETOUR2 
+                FROM EMPLOYES
+                FETCH FIRST 10 ROWS ONLY
+                                      
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
