@@ -1,0 +1,749 @@
+---
+title: "Les opérateurs logiques PostgreSQL"
+author: "Razvan BIZOÏ"
+date: "2024-11-23"
+output:
+  html_document:
+    number_sections: false
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Librairies nécessaires
+
+```{r librairies}
+library(RPostgres)
+library(DBI)
+library(DT)
+```
+
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+# Connexion à la base de données PostgreSQL `Cours`
+
+```{r, echo=FALSE}
+  host=''
+  port=''
+  dbname=''
+  user=''
+  password=''
+```
+
+```{r, echo=TRUE}
+library(RPostgres)
+library(DBI)
+
+connection <- dbConnect(RPostgres::Postgres(), host=host, port=port, dbname=dbname, user=user, password=password)
+
+```
+
+# Opérateur égal à `=` 
+
+>>  `SELECT [ ALL | DISTINCT ]`<br>
+>>  `   { [{ NOM_TABLE | ALIAS2 }.]* ,`<br>
+>>  `   [ [{NOM_TABLE |ALIAS2}.]COLONNE1 [AS] ALIAS1[,...]}`<br>
+>>  `FROM NOM_TABLE ALIAS2`<br>
+>>  `WHERE PREDICAT`<br>
+        
+        
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT * 
+              FROM CLIENTS 
+              WHERE PAYS='France'
+              FETCH NEXT 5 ROWS ONLY
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT * 
+              FROM PRODUITS 
+              WHERE code_categorie = 3
+              FETCH NEXT 5 ROWS ONLY
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, 
+                     PRENOM, 
+                     DATE_EMBAUCHE, 
+                     DATE_NAISSANCE
+              FROM EMPLOYES 
+              WHERE DATE_EMBAUCHE = '1991-04-03'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, 
+                     PRENOM, 
+                     DATE_EMBAUCHE, 
+                     DATE_NAISSANCE
+              FROM EMPLOYES 
+              WHERE DATE_NAISSANCE = make_date(1968,9,7)
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# `IS NULL`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, PRENOM, SALAIRE, COMMISSION 
+              FROM EMPLOYES 
+              WHERE COMMISSION = NULL
+              FETCH NEXT 5 ROWS ONLY
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, PRENOM, SALAIRE, COMMISSION 
+              FROM EMPLOYES 
+              WHERE COMMISSION IS NULL
+              FETCH NEXT 5 ROWS ONLY
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# `IS NOT NULL`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, PRENOM, SALAIRE, COMMISSION 
+              FROM EMPLOYES 
+              WHERE COMMISSION IS NOT NULL
+              FETCH NEXT 5 ROWS ONLY
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+# Supérieur à `>` 
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT NOM, 
+                       PRENOM, 
+                       SALAIRE 
+                FROM EMPLOYES 
+                WHERE SALAIRE > 13000
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                                        
+                SELECT NOM, 
+                       PRENOM, 
+                       DATE_EMBAUCHE 
+                FROM EMPLOYES 
+                WHERE DATE_EMBAUCHE > make_date(2003,6,30)
+                FETCH NEXT 5 ROWS ONLY
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                                        
+                SELECT NOM, 
+                       PRENOM, 
+                       DATE_EMBAUCHE 
+                FROM EMPLOYES 
+                WHERE NOM >= 'Twardowski' 
+                ORDER BY NOM
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# Inférieur à `<`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                                        
+                SELECT NOM, 
+                       PRENOM, 
+                       DATE_EMBAUCHE 
+                FROM EMPLOYES 
+                WHERE DATE_EMBAUCHE < make_date(1989,4,16)
+                ORDER BY NOM
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                                        
+                SELECT NOM, 
+                       PRENOM, 
+                       DATE_EMBAUCHE 
+                FROM EMPLOYES 
+                WHERE DATE_EMBAUCHE <= make_date(1989,4,16)
+                ORDER BY NOM
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                                        
+              SELECT NOM_PRODUIT, QUANTITE, ASCII(' '), CHR(112), ASCII('p'), CHR(115), ASCII('s')
+              FROM PRODUITS 
+              WHERE QUANTITE >'50'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                                        
+              SELECT CODE_CLIENT, 
+                     SOCIETE 
+              FROM CLIENTS 
+              WHERE CODE_CLIENT < 'B'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# Différent de `<>`
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT NOM, 
+                       PRENOM, 
+                       FONCTION 
+                FROM EMPLOYES 
+                WHERE FONCTION <>'Représentant(e)'
+                FETCH NEXT 10 ROWS ONLY
+                        
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# Opérateur `LIKE`
+
+Il utilise deux caractères spéciaux pour signifier le type de correspondance recherchée :<br>
+
+*    un signe pourcentage `%`, appelé caractère générique,
+*    et un caractère de soulignement `_`, appelé marqueur de position.
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT NOM_PRODUIT, 
+                QUANTITE 
+                FROM PRODUITS
+                WHERE QUANTITE LIKE '%boîtes%kg%'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+Les valeurs contenues dans les colonnes sont sensibles à la case (majuscule, minuscule), les informations saisies dans les chaînes de caractères de comparaison doivent l’être aussi.
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT NOM_PRODUIT, 
+                QUANTITE 
+                FROM PRODUITS
+                WHERE QUANTITE LIKE '%Boîtes%kg%'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT NOM_PRODUIT,
+                       QUANTITE 
+                FROM PRODUITS 
+                WHERE QUANTITE LIKE '__0%g'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT NOM_PRODUIT,
+                       QUANTITE 
+                FROM PRODUITS 
+                WHERE QUANTITE LIKE '___%pièces'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM_CATEGORIE, 
+                     DESCRIPTION 
+              FROM CATEGORIES 
+              WHERE DESCRIPTION LIKE '%' || NOM_CATEGORIE ||'%'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+# Atelier 1 -- Opérateurs logiques
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+
+## Restriction
+
+Écrivez les requêtes permettant d’afficher :
+
+1. Le nom de la société et de la localité des clients qui habitent à Toulouse.
+1. Le nom, le prénom et la fonction des employés qui ne sont pas des représentants.
+1. Le nom du produit, la catégorie et le fournisseur des produits qui ne sont pas disponibles, le champ `INDISPONIBLE` est égal à `1`.
+1. Le nom, prénom et fonction des employés qui ont un salaire inférieur à `3500`.
+1. Le nom, prénom et fonction des employés dirigés par l’employé numéro `86`.
+1. Le nom, prénom et fonction des employés recrutés après `01/01/2003`.
+
+## Traitement des chaînes de caractères
+
+1. Les produits et leur quantité conditionnée en bouteilles d’un litre.
+
+
+
+# Opérateur `BETWEEN` `>= and <=`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, 
+                     PRENOM, 
+                     SALAIRE 
+              FROM EMPLOYES 
+              WHERE SALAIRE BETWEEN 1500 AND 2000
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT NOM, 
+                     PRENOM, 
+                     DATE_NAISSANCE 
+              FROM EMPLOYES 
+              WHERE DATE_NAISSANCE BETWEEN make_date(1985,1,1) AND make_date(1985,12,31)
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT CODE_CLIENT, 
+                     SOCIETE, 
+                     VILLE 
+              FROM CLIENTS 
+              WHERE CODE_CLIENT BETWEEN 'GALED' AND 'HANAR'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# Opérateur `IN`
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+              SELECT CODE_CLIENT, 
+                     SOCIETE, 
+                     VILLE 
+              FROM CLIENTS 
+              WHERE VILLE IN ('Paris','Strasbourg','Toulouse')
+
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+# Expressions logiques
+
+## `AND`
+
+```{r}
+requette <- dbSendQuery(connection, "
+                        
+                SELECT NOM_PRODUIT,
+                       QUANTITE, 
+                       UNITES_STOCK 
+                FROM PRODUITS 
+                WHERE  UNITES_STOCK > 100 
+                  AND  QUANTITE LIKE '%boîte%'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+
+                SELECT NO_COMMANDE, 
+                       CODE_CLIENT, 
+                       NO_EMPLOYE, 
+                       DATE_ENVOI 
+                FROM COMMANDES 
+                WHERE CODE_CLIENT = 'COMMI' 
+                  AND NO_EMPLOYE BETWEEN 6 AND 8 
+                  AND DATE_ENVOI < make_date(2010,4,1)
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+## `OR`
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+
+                SELECT NOM_PRODUIT, 
+                       QUANTITE, 
+                       UNITES_STOCK 
+                FROM PRODUITS 
+                WHERE QUANTITE IS NULL 
+                   OR UNITES_STOCK IS NULL
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+
+                SELECT NOM_PRODUIT, 
+                       CODE_CATEGORIE,
+                       NO_FOURNISSEUR
+                FROM PRODUITS 
+                WHERE NO_FOURNISSEUR = 1 
+                   OR NO_FOURNISSEUR = 5
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+## Prédicat complexe
+
+```{r}
+requette <- dbSendQuery(connection, "
+
+                SELECT SOCIETE, 
+                       PAYS, 
+                       FAX 
+                FROM FOURNISSEURS 
+                WHERE FAX IS NULL 
+                  AND PAYS = 'Allemagne' 
+                   OR PAYS = 'France'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+
+                SELECT SOCIETE, 
+                       PAYS, 
+                       FAX 
+                FROM FOURNISSEURS 
+                WHERE FAX IS NULL 
+                  AND (PAYS = 'Allemagne' OR PAYS = 'France')
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# `NOT`
+
+```{r}
+requette <- dbSendQuery(connection, "
+
+                SELECT NOM,
+                       FONCTION, 
+                       SALAIRE  
+                FROM EMPLOYES 
+                WHERE SALAIRE > 2500 AND NOT FONCTION LIKE 'Rep%'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+
+                SELECT NOM,
+                       FONCTION, 
+                       SALAIRE  
+                FROM EMPLOYES 
+                WHERE SALAIRE > 2500 AND FONCTION NOT LIKE 'Rep%'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+# `NOT IN`
+
+```{r}
+requette <- dbSendQuery(connection, "
+
+                SELECT NOM,
+                       PRENOM, 
+                       TITRE  
+                FROM EMPLOYES 
+                WHERE NOT TITRE IN ('M.','Mme')
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+```{r}
+requette <- dbSendQuery(connection, "
+
+                SELECT NOM,
+                       PRENOM, 
+                       TITRE  
+                FROM EMPLOYES 
+                WHERE TITRE NOT IN ('M.','Mme')
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# `NOT BETWEEN`
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+
+                SELECT NOM, 
+                       PRENOM, 
+                       DATE_EMBAUCHE 
+                FROM EMPLOYES 
+                WHERE DATE_EMBAUCHE NOT BETWEEN make_date(1990,1,1) AND make_date(2003,7,31)
+                ORDER BY DATE_EMBAUCHE
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+# `IS NOT NULL`
+
+```{r}
+requette <- dbSendQuery(connection, "
+
+                SELECT NOM,
+                       PRENOM, 
+                       SALAIRE,
+                       COMMISSION
+                FROM EMPLOYES 
+                WHERE COMMISSION IS NOT NULL AND SALAIRE > 10000
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# `NOT LIKE`
+
+
+```{r}
+requette <- dbSendQuery(connection, "
+
+                SELECT NOM_CATEGORIE, 
+                       DESCRIPTION 
+                FROM CATEGORIES 
+                WHERE DESCRIPTION NOT LIKE '%' || NOM_CATEGORIE ||'%'
+
+                        ")
+
+donnees <- dbFetch(requette);dbHasCompleted(requette);dbClearResult(requette)
+
+donnees
+```
+
+# Atelier 2 -- Opérateurs logiques
+
+![](https://raw.githubusercontent.com/rbizoi/IntelligenceEnDonneesDeSante/main/InterrogationSQL/images/612.png)
+
+
+## `BETWEEN`
+
+Écrivez les requêtes permettant d’afficher :
+
+1. Le nom, prénom, fonction et salaire des employés qui ont un salaire compris entre `3500` et `6000`.
+1. Le numéro de commande, code client et la date de commande pour les commandes passées entre le `'01/01/2011'` et `'03/01/2011'`.
+
+
+## comparaison avec des listes
+
+1. Le nom de la société, l’adresse, le téléphone et la ville des clients qui habitent à `Toulouse`, à `Strasbourg`, à `Nantes` ou à `Marseille`.
+1. Le nom du produit, le fournisseur, la catégorie et les quantités en stock pour les produits qui sont d’une des catégories `1`, `3`, `5` et `7`.
+1. Le numéro de commande, code client et la date de commande pour les commandes passées dans une des dates : `'18/02/2011'`, `'20/02/2011'` ou `'25/02/2011'`.
+
+## Assemblage des expressions
+
+1. Le nom, prénom, fonction et le salaire des représentants qui sont en activité depuis `'10/10/2002'`.
+1. Le nom, prénom, fonction et le salaire des employés qui sont âgés de plus de 45 ans ou qui ont une ancienneté de plus de 10 ans.
+1. Le nom du produit, le fournisseur, la catégorie et les quantités des produits qui ont le numéro fournisseur entre 1 et 3 ou un code catégorie entre `1` et `3` et pour lesquelles les quantités sont données en `boîtes` ou en `cartons`.
+1. Les produits et leur quantité à condition que leur emballage ne soit pas d’un de ces types : `cartons`, `boîtes` ou `unités` et qu’il ne soit pas conditionné par `paquets` de `24` ou `32`. Il ne faut pas afficher les produits de catégorie `1`, `4` et `8`.
