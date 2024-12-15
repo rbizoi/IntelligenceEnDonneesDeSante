@@ -1,0 +1,190 @@
+---
+title: "Une manière d'évaluer un modèle de prédiction"
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    #theme: cosmo
+    highlight: tango
+    #code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE, out.height="800%", out.width="800%"}
+clearAll <- function() {
+  rm(list = ls(envir = globalenv()),envir = globalenv()) #clear Vars from global enviroment
+  gc()  #grabage colector
+  cat("\014") #clc
+  #.rs.restartR() #clear session
+}
+clearAll()
+```
+
+#Nécessité d'évaluer les modèles de prédiction
+
+Évaluer les performances d'un modèle de prédiction est primordial :
+
+* Pour savoir si le modèle est globalement significatif. Mon modèle traduit-il vraiment une causalité ?
+  + Pour se donner une idée des performances en déploiement. Quelle sera la fiabilité (les coûts associés) lorsque j'utiliserai mon modèle ?
+  + Pour comparer plusieurs modèles candidats. Lequel parmi plusieurs modèles sera le plus performant compte tenu de mes objectifs ?
+
+
+#Chargement des données
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+suppressMessages(library(tidyverse))
+suppressMessages(library(randomForest))
+suppressMessages(library(plotROC))
+suppressMessages(library(caret))
+
+
+seed <- 754
+set.seed(seed)
+load(file='donnees/lesSurvivantsDuTitanic.apprentissage.model.RData')
+varpredict <- names(echantillonApprentissage)[-1]
+
+```
+# Random Forest
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+# fit model
+fit.randomForest <- randomForest(Survivant~., data=echantillonApprentissage, ntree=100)
+
+# summarize the fit
+print(fit.randomForest)
+# make predictions
+predictions <- predict(fit.randomForest, echantillonValidation[,varpredict], type="class")
+# summarize accuracy
+confusionMatrix(predictions, echantillonValidation$Survivant)
+
+rfTestPred <- predict(fit.randomForest, echantillonValidation[,varpredict], type="prob")
+
+jeuxTest <- data.frame(ModelProb = rfTestPred[,1])
+jeuxTest$PredClass  <- predict(fit.randomForest, echantillonValidation[,varpredict], type="class")
+jeuxTest$Class      <- echantillonValidation$Survivant
+jeuxTest |> arrange(desc(ModelProb)) -> jeuxTest
+```
+
+
+# Définitions
+
+Le taux d'erreur semble être un indicateur synthétique pertinent, il indique (estime) la probabilité de mal classer un individu de la population.
+
+##Le taux d'erreur : un indicateur trop réducteur
+
+![](images/matriceConfusion01.png)
+
+###Matrice de Confusion
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+
+confusionMatrix(jeuxTest$PredClass,jeuxTest$Class)
+```
+
+![](images/matriceConfusion02.png)
+
+Cette conclusion -- basée sur l'échantillon test -- suppose que la matrice de coût de mauvais classement est symétrique et unitaire. 
+
+Lorsque les classes sont très déséquilibrées, la matrice de confusion et surtout le taux d'erreur donnent souvent une fausse idée de la qualité de l'apprentissage. Cette anomalie est liée au fait que nous voulons absolument que le modèle réalise un affectation (positif ou négatif). Or dans de nombreux domaines, ce qui nous intéresse avant tout, c'est de mesurer la propension à être positif ou négatif !
+
+
+##Les autres indicateurs
+
+Les autres indicateurs sont très intéressants également (sensibilité/rappel, spécificité/précision) mais obligent à surveiller plusieurs valeurs simultanément.
+
+![Matrice Confusion](images/matriceConfusion.png)
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+probabilite <- jeuxTest$ModelProb
+observations <- jeuxTest$Class
+predictions  <- jeuxTest$PredClass
+matriceConfusion <- table(predictions, observations)
+vraisPositifs <- matriceConfusion[1,1] 
+fauxNegatifs  <- matriceConfusion[2,1] 
+fauxPositifs  <- matriceConfusion[1,2] 
+vraisNegatifs <- matriceConfusion[2,2] 
+
+sensibilite <- vraisPositifs / (vraisPositifs + fauxNegatifs)
+specificite <- vraisNegatifs / (fauxPositifs  + vraisNegatifs)
+prevalence  <- (vraisPositifs + fauxNegatifs) / (vraisPositifs + fauxPositifs + fauxNegatifs  + vraisNegatifs)
+
+ValeurPreditePositive  <- sensibilite * prevalence / (sensibilite * prevalence + ((1 - specificite)*(1 - prevalence)))
+ValeurPrediteNegative  <- specificite * (1 - prevalence) / ((prevalence * (1 - sensibilite)) + (specificite*(1 - prevalence)))
+```
+
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+print(paste('Sensibilité = ',sensitivity(predictions, observations)))
+print(paste('Sensibilité = ',sensitivity(matriceConfusion)))
+print(paste('Valeur prédite positive = ',posPredValue(predictions, observations)))
+print(paste('Valeur prédite positive au seuil de prévalence 25% = ',posPredValue(predictions, observations, prevalence = 0.25)))
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+print(paste('Spécificité = ',specificity(predictions, observations)))
+print(paste('Valeur prédite négative = ',negPredValue(predictions, observations)))
+print(paste('Valeur prédite négative à partir de matrice de confusion = ',negPredValue(matriceConfusion)))
+print(paste('Valeur prédite négative au seuil de prévalence 25% = ',negPredValue(predictions, observations, prevalence = 0.25)))
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+tab.prevalence <- seq(0.001, .99, length = 20)
+npvVals <- ppvVals <- tab.prevalence  * NA
+for(i in seq(along = tab.prevalence)){
+    ppvVals[i] <- posPredValue(predictions, observations, prevalence = tab.prevalence[i])
+    npvVals[i] <- negPredValue(predictions, observations, prevalence = tab.prevalence[i])}
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+distModel <-  rbind(data.frame(prevalence = tab.prevalence, 
+                        ValeurPredite = ppvVals,
+                        Classe = rep('Valeur Predite Positive',length(tab.prevalence))),
+                   data.frame(prevalence = tab.prevalence, 
+                        ValeurPredite = npvVals,
+                        Classe = rep('Valeur Predite Negative',length(tab.prevalence))))
+
+ggplot(distModel) +
+geom_line(aes(x=prevalence, y=ValeurPredite, colour = Classe))+
+geom_hline(yintercept = sensibilite,color="red")+
+geom_hline(yintercept = specificite,color="blue")+
+  annotate("text",x=0.5,y=sensibilite + 0.05,label=paste("Sensibilité ",round(sensibilite*100,2),"%"),color="red",size=5) +
+  annotate("text",x=0.5,y=specificite + 0.05,label=paste("Spécificité ",round(specificite*100,2),"%"),color="blue",size=5) +
+  xlab("Prévalence (antérieure)") +
+  ylab("Valeur Prédite") +
+  ggtitle("L'effet de la prévalence sur les valeurs prédictives")
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+library(reshape2)
+melted_cormat <- melt(round(cor(mtcars[, c(1,3,4,5,6,7)]),2))
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + geom_tile()
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+
+donneesModel <- data.frame(Survivant = as.integer(jeuxTest$Class), Survivant.Nom = as.character(jeuxTest$Class),
+                   ModelProb = jeuxTest$ModelProb)
+
+basicplot <- ggplot(donneesModel, aes(d = 1 - Survivant, m = ModelProb))+ geom_roc(n.cuts = 0)
+
+basicplot<- basicplot  +
+  geom_rocci(ci.at = quantile(donneesModel$ModelProb, c(.1, .25, .5, .75, .9)),sig.level = .01) + 
+  style_roc(xlab='Le taux de faux Positifs(1 - Specificity)',ylab='Le taux de vrais positifs(Sensitivity)')+
+  annotate("text",x=0.55,y=0.45,label="AUC <= 0.5 prédiction pire qu'au hasard",color="red",size=5, angle=29) +
+  ggtitle(paste('Surface sous courbe ROC (AUC) : ',round(calc_auc(basicplot)$AUC,3),"%")) + coord_fixed(ratio = 1/2)
+
+basicplot
+```
+
+
+
+

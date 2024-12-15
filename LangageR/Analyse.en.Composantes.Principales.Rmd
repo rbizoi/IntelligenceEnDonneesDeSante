@@ -1,0 +1,499 @@
+---
+title: "ACP - Analyse en Composantes Principales"
+author: "Razvan BIZOÏ"
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    number_sections: false
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    highlight: tango
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+L' analyse en composantes principales (ACP) , ou principal component analysis (PCA) en anglais, permet d'analyser et de visualiser un jeu de données contenant des individus décrits par plusieurs variables quantitatives.
+
+```{r echo=TRUE}
+suppressMessages(library(tidyverse))
+library(nanoparquet)
+library(DT)
+
+suppressMessages(library(reticulate))
+rm(list=ls())
+```
+
+# Lecture des données
+
+```{r echo=TRUE}
+
+donnees <- as_tibble(read_parquet("donnees/temperatures.gzip"))
+
+donnees |> column_to_rownames(var="Nom") |> select (- c("Latitude","Longitude","Altitude","Zone")) -> traitement 
+```
+
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+library(FactoMineR)
+library(factoextra)
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+res.pca <- PCA(traitement, graph = FALSE)
+print(res.pca)
+```
+
+##Valeurs propres / Variances
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+library("factoextra")
+eig.val <- get_eigenvalue(res.pca)
+eig.val
+```
+
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_eig(res.pca, addlabels = TRUE, ylim = c(0, 50))
+```
+
+Du graphique ci-dessus, nous pourrions vouloir nous arrêter ? la cinquième composante principale. 87% des informations (variances) contenues dans les données sont conservées par les cinq premières composantes principales. 
+
+##Résultats
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+var <- get_pca_var(res.pca)
+var
+```
+
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Coordonn?es
+head(var$coord)
+# Cos2: qualit? de r?presentation
+head(var$cos2)
+# Contributions aux composantes principales
+head(var$contrib)
+```
+
+##Cercle de corrélation 
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Colorer en fonction du cos2: qualit? de repr?sentation
+fviz_pca_var(res.pca, col.var = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE # ?vite le chevauchement de texte
+             )
+```
+##Qualité de représentation
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+head(var$cos2, 4)
+```
+
+![](images/08.png)
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+library("corrplot")
+corrplot(var$cos2, is.corr=FALSE)
+```
+
+## Cos2 total des variables sur Dim.1 et Dim.2
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+
+fviz_cos2(res.pca, choice = "var", axes = 1:2)
+```
+## Changer la transparence en fonction du cos2
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+
+fviz_pca_var(res.pca, alpha.var = "cos2")
+```
+#Contributions des variables aux axes principaux
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+head(var$contrib, 4)
+```
+
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+library("corrplot")
+corrplot(var$contrib, is.corr=FALSE)    
+```
+
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Contributions des variables à PC1
+fviz_contrib(res.pca, choice = "var", axes = 1, top = 10)
+# Contributions des variables à PC2
+fviz_contrib(res.pca, choice = "var", axes = 2, top = 10)
+```
+
+La contribution totale à PC1 et PC2 est obtenue avec le code R suivant:
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_contrib(res.pca, choice = "var", axes = 1:2, top = 10)
+```
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_contrib(res.pca, choice = "var", axes = 2:2, top = 10)
+```
+
+Les variables les plus importantes (ou, contributives) peuvent être mises en évidence sur le graphe de corrélation comme suit:
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_var(res.pca, col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07")
+             )
+```
+
+## Changez la transparence en fonction de contrib
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_var(res.pca, alpha.var = "contrib")
+```
+
+# Colorer en fonction d'une variable continue quelconque
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Cr?er une variable al?atoire continue de longueur 10
+set.seed (123)
+my.cont.var <- rnorm (dim(res.pca$var$contrib)[1])
+# Colorer les variables en fonction de la variable continue
+fviz_pca_var(res.pca, col.var = my.cont.var,
+             gradient.cols = c("blue", "yellow", "red"),
+             legend.title = "Cont.Var")
+```
+
+# Colorer par groupes
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Cr?ez une variable de regroupement en utilisant kmeans
+# Cr?ez 3 groupes de variables (centers = 3)
+set.seed(123)
+res.km <- kmeans(var$coord, centers = 3, nstart = 25)
+grp <- as.factor(res.km$cluster)
+# Colorer les variables par groupes
+fviz_pca_var(res.pca, col.var = grp, 
+             palette = c("#0073C2FF", "#EFC000FF", "#868686FF"),
+             legend.title = "Cluster")
+```
+
+# Description des dimensions
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+res.desc <- dimdesc(res.pca, axes = c(1,2), proba = 0.05)
+# Description de la dimension 1
+res.desc$Dim.1
+# Description de la dimension 2
+res.desc$Dim.2
+```
+
+# Graphique des individus
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+ind <- get_pca_ind(res.pca)
+ind
+# Coordonn?es des individus
+head(ind$coord)
+# Qualit? des individus
+head(ind$cos2)
+# Contributions des individus
+head(ind$contrib)
+```
+
+
+# Graphique: qualité et contribution
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_ind (res.pca, col.ind = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE # ?vite le chevauchement de texte
+             )
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_ind (res.pca, pointsize = "cos2",
+             pointshape = 21, fill = "#E7B800",
+             repel = TRUE # ?vite le chevauchement de texte
+             )
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_ind(res.pca, col.ind = "cos2", pointsize = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE 
+             )
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_cos2(res.pca, choice = "ind")
+```
+
+## Contribution totale sur PC1 et PC2
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_contrib(res.pca, choice = "ind", axes = 1:2)
+```
+
+# Colorer en fonction d'une variable continue quelconque
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Créez une variable continue alèatoire de longueur 23,
+# Même longeur que le nombre d'individus actifs dans l'ACP
+set.seed (123)
+my.cont.var <- rnorm(length(res.pca$ind$dist))
+# Colorer les individus par la variable continue
+fviz_pca_ind(res.pca, col.ind = my.cont.var,
+             gradient.cols = c("blue", "yellow", "red"),
+             legend.title = "Cont.Var")
+```
+
+#Colorer par groupes 
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+head(iris, 3)
+# La variable Species (index = 5) est supprimée
+# avant l'ACP
+iris.pca <- PCA(iris [, - 5], graph = FALSE)
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_ind(iris.pca,
+             geom.ind = "point", # Montre les points seulement (mais pas le "text")
+             col.ind = iris$Species, # colorer by groups
+             palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+             addEllipses = TRUE, # Ellipses de concentration
+             legend.title = "Groups"
+             )
+```
+
+## Ajoutez des ellipses de confiance
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+
+fviz_pca_ind(iris.pca, geom.ind = "point", col.ind = iris$Species, 
+             palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+             addEllipses = TRUE, ellipse.type = "confidence",
+             legend.title = "Groups"
+             )
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+
+fviz_pca_ind(iris.pca,
+             label = "none", # Caché le texte des individus
+             habillage = iris$Species, # colorer par groupes
+             addEllipses = TRUE, # Ellipses de concentration
+             palette = "jco"
+             )
+
+```
+
+
+# Personnalisation du graphique
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Variables sur les dimensions 2 et 3
+fviz_pca_var(res.pca, axes = c(2, 3))
+# Individus sur les dimensions 2 et 3
+fviz_pca_ind(res.pca, axes = c(2, 3))
+```
+## Eléments graphiques: point, texte, fléche
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Afficher les points et l'annotation des variables
+fviz_pca_var(res.pca, geom.var = c("point", "text"))
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Afficher uniquement l'annotation des individus
+fviz_pca_ind(res.pca, geom.ind = "text")
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Changez la taille des fléches et du texte
+fviz_pca_var(res.pca, arrowsize = 1, labelsize = 5,
+             repel = TRUE)
+# Modification de la taille, de la forme 
+# et de la couleur de remplissage des points
+# Modifier la taille du texte
+fviz_pca_ind (res.pca,
+             pointsize = 3, pointshape = 21, fill = "lightblue",
+             labelsize = 5, repel = TRUE)
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Add confidence ellipses
+fviz_pca_ind(iris.pca, geom.ind = "point", 
+             col.ind = iris$Species, # color by groups
+             palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+             addEllipses = TRUE, ellipse.type = "confidence",
+             legend.title = "Groups"
+             )
+# Convex hull
+fviz_pca_ind(iris.pca, geom.ind = "point",
+             col.ind = iris$Species, # color by groups
+             palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+             addEllipses = TRUE, ellipse.type = "convex",
+             legend.title = "Groups"
+             )
+```
+
+# Centre de gravité: Le point moyen des groupes
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_ind (iris.pca,
+             geom.ind = "point", # afficher les points seulement (pas de "texte")
+             col.ind = iris$Species, # Couleur par groupes
+             legend.title = "Groupes",
+             mean.point = FALSE)
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_var (res.pca, axes.linetype = "blank")
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+ind.p <- fviz_pca_ind(iris.pca, geom = "point", col.ind = iris$Species)
+ggpubr::ggpar(ind.p,
+              title = "Principal Component Analysis",
+              subtitle = "Iris data set",
+              caption = "Source: factoextra",
+              xlab = "PC1", ylab = "PC2",
+              legend.title = "Species", legend.position = "top",
+              ggtheme = theme_gray(), palette = "jco"
+              )
+```
+
+# Biplot
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_biplot(res.pca, repel = TRUE,
+                col.var = "#2E9FDF", # Couleur des variables
+                col.ind = "#696969"  # Couleur des individues
+                )
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_biplot (iris.pca,
+                col.ind = iris$Species, palette = "jco",
+                addEllipses = TRUE, label = "var",
+                col.var = "black", repel = TRUE,
+                legend.title = "Species")
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_biplot(iris.pca, 
+                # Colueur de remplissage des individdus par groupes
+                geom.ind = "point",
+                pointshape = 21,
+                pointsize = 2.5,
+                fill.ind = iris$Species,
+                col.ind = "black",
+                # Colorer les variables par groupes
+                col.var = factor(c("sepal", "sepal", "petal", "petal")),
+                
+                legend.title = list(fill = "Species", color = "Clusters"),
+                repel = TRUE        # Evite le ch?vauchement du texte
+             )+
+  ggpubr::fill_palette("jco")+      # Couleur des individus
+  ggpubr::color_palette("npg")      # Couleur des variables
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_biplot(iris.pca, 
+                # Individus
+                geom.ind = "point",
+                fill.ind = iris$Species, col.ind = "black",
+                pointshape = 21, pointsize = 2,
+                palette = "jco",
+                addEllipses = TRUE,
+                # Variables
+                alpha.var ="contrib", col.var = "contrib",
+                gradient.cols = "RdYlBu",
+                
+                legend.title = list(fill = "Species", color = "Contrib",
+                                    alpha = "Contrib")
+                )
+```
+
+# Eléments supplèmentaires
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+res.pca <- PCA(decathlon2, ind.sup = 24:27, 
+               quanti.sup = 11:12, quali.sup = 13, graph=FALSE)
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+res.pca$quanti.sup
+```
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+fviz_pca_var(res.pca)
+```
+
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Changer la couleur des variables
+fviz_pca_var(res.pca,
+             col.var = "black", # Variables actives
+             col.quanti = "red" # variables quantitatives supl.
+             )
+# Cacher les variables actives sur le graphique,
+# ne montrent que des variables supplèmentaires
+fviz_pca_var(res.pca, invisible = "var")
+# Cacher les variables supplèmentaires
+fviz_pca_var(res.pca, invisible = "quanti.sup")
+```
+
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Graphique des variables actives
+p <- fviz_pca_var(res.pca, invisible = "quanti.sup")
+# Ajouter des variables actives supplèmentaires
+fviz_add(p, res.pca$quanti.sup$coord, 
+         geom = c("arrow", "text"), 
+         color = "red")
+```
+
+##Indivius
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+res.pca$ind.sup
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+p <- fviz_pca_ind(res.pca, col.ind.sup = "blue", repel = TRUE)
+p <- fviz_add(p, res.pca$quali.sup$coord, color = "red")
+p
+```
+##  Variables qualitatives
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+res.pca$quali
+fviz_pca_ind(res.pca, habillage = 13,
+             addEllipses =TRUE, ellipse.type = "confidence",
+             palette = "jco", repel = TRUE)
+```
+
+## Filtrer les résultats
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%", out.width="800%"}
+# Visualiser les variables avec cos2> = 0.6
+fviz_pca_var (res.pca, select.var = list(cos2 = 0.6))
+# Top 5 variables actives avec le cos2 le plus elevé
+fviz_pca_var (res.pca, select.var = list(cos2 = 5))
+# Sélectionnez par noms
+name <- list (name = c ("Long.jump", "High.jump", "X100m"))
+fviz_pca_var (res.pca, select.var = name)
+# Top 5 des individus/variables les plus contibutifs
+fviz_pca_biplot (res.pca, select.ind = list (contrib = 5),
+               select.var = list (contrib = 5),
+               ggtheme = theme_minimal())
+```
+
+
+

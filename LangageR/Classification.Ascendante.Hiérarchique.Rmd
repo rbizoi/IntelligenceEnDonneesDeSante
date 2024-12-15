@@ -1,0 +1,102 @@
+---
+title: "Classification Ascendante Hiérarchique"
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    #theme: cosmo
+    highlight: tango
+    #code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%",out.width="800%"}
+suppressMessages(library(ggdendro))
+suppressMessages(library(cluster))
+suppressMessages(library(mlbench))
+suppressMessages(library(tidyverse))
+suppressMessages(library(gridExtra))
+suppressMessages(library(FactoMineR))
+suppressMessages(library(factoextra))
+
+seed <- 123456789
+set.seed(seed)
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%",out.width="800%",fig.width = 24,fig.height = 16}
+
+
+rm(iris)
+empty <- ggplot()+geom_point(aes(1,1), colour="white") +
+     theme(plot.background = element_blank(), 
+       panel.grid.major = element_blank(), 
+       panel.grid.minor = element_blank(), 
+       panel.border = element_blank(), 
+       panel.background = element_blank(),
+       axis.title.x = element_blank(),
+       axis.title.y = element_blank(),
+       axis.text.x = element_blank(),
+       axis.text.y = element_blank(),
+       axis.ticks = element_blank() )
+
+scatter <- ggplot(iris,aes(Sepal.Length,Sepal.Width)) + 
+   geom_point(aes(color=Species), size = 6, alpha = 0.6) + 
+   scale_color_manual(values = c('#bd0026', '#225ea8', '#fe9929'))+
+   theme(text = element_text(size=32),legend.position=c(1,1),legend.justification=c(1,1)) 
+plot_top <- ggplot(iris, aes(Sepal.Length, fill=Species)) + 
+   geom_density(alpha=.5) +
+   scale_fill_manual(values = c('#bd0026', '#225ea8', '#fe9929')) + 
+   theme(text = element_text(size=32),legend.position = "none")
+plot_right <- ggplot(iris, aes(Sepal.Width, fill=Species)) + 
+   geom_density(alpha=.5) + 
+   coord_flip() + 
+   scale_fill_manual(values = c('#bd0026', '#225ea8', '#fe9929')) + 
+   theme(text = element_text(size=32),legend.position = "none") 
+grid.arrange(plot_top, empty, scatter, plot_right,
+          ncol=2, nrow=2, widths=c(4, 1), heights=c(1, 4))
+
+```
+
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%",out.width="800%",fig.width = 24,fig.height = 16}
+
+resultat.acp = PCA(iris, 
+                   scale.unit=TRUE, 
+                   quali.sup=5, 
+                   graph = F)
+
+res.hcpc <- HCPC(resultat.acp, nb.clust= -1, graph = FALSE)
+fviz_dend(res.hcpc, 
+          cex = 1.7,                     # Taille du text
+          palette = "jco",               # Palette de couleur ?ggpubr::ggpar
+          rect = TRUE, rect_fill = TRUE, # Rectangle autour des groupes
+          rect_border = "jco",           # Couleur du rectangle
+          labels_track_height = 0.8      # Augment l'espace pour le texte
+          )+
+   theme(text = element_text(size=32),axis.text.x=element_text(angle=45,hjust=1)) 
+
+fviz_cluster(res.hcpc,
+             pointsize = 5,
+             labelsize = 24,  
+             outlier.color = "black",
+             outlier.shape = 19,
+             outlier.pointsize = pointsize,
+             outlier.labelsize = labelsize )+
+   theme(text = element_text(size=32),axis.text.x=element_text(angle=45,hjust=1))    
+
+```
+
+```{r echo=TRUE, fig.align='default', message=FALSE, warning=FALSE, out.height="800%",out.width="800%",fig.width = 24,fig.height = 16}
+library(GGally)
+ggpairs(iris,mapping = ggplot2::aes(color = Species), diag = list(continuous = 'density'), axisLabels = 'show')+
+   theme(text = element_text(size=32),axis.text.x=element_text(angle=45,hjust=1))  
+```
