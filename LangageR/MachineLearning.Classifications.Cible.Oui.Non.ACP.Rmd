@@ -1,0 +1,453 @@
+---
+title: "Les m?thodes de classification en Machine Learning"
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    number_sections: false
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+rm(list = ls())
+seed <- 123456789
+suppressMessages(library(caret))
+suppressMessages(library(tidyverse))
+```
+
+
+
+# Lecture des donn?es
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="100%"}
+#load(".RData")
+load("donnees/breastCancer.RData")
+
+donnees <- breastCancer
+donnees <- donnees[,-1]
+noms <- names(donnees)
+noms[1]<-'Cible'
+names(donnees) <- noms
+
+predicteurs <- names(donnees[,-1])
+```
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="100%"}
+library(FactoMineR)
+library(factoextra)
+library(caret)
+
+preprocessParams <- preProcess(donnees[, -1], 
+                               method=c("center", "scale", "pca"))
+print(preprocessParams)
+res.pca  = PCA(donnees, scale.unit=TRUE, ncp = 10, quali.sup =  1, graph = F)
+donnees <- as.data.frame(cbind(as.factor(donnees$Cible),res.pca$ind$coord))
+
+names(donnees)[1] <- "Cible"
+donnees$Cible <- breastCancer$diagnosis
+predicteurs <- names(donnees[,-1])
+```
+
+# liste des variables qualitatives
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+varQualitatives <- NULL
+```
+
+
+# liste des variables quantitatives discr?tes
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+varQuantitatives <- NULL
+```
+
+# liste des variables quantitatives continues
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+varQuantitativesNum <- predicteurs
+```
+
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, out.height="800%", out.width="800%", fig.width =20, fig.height=20}
+suppressMessages(library(plotROC))
+
+donneesModelROCALL <- NULL
+fun.auc.ggplot <- function (ModelProb, ModelCible, Title = '', df = donneesModelROCALL){
+
+  donneesModel <- data.frame(Cible = as.integer(ModelCible), 
+                             Cible.Nom = as.character(ModelCible),
+                             ModelProb = ModelProb)
+  
+  basicplot <- ggplot(donneesModel, aes(d = Cible, m = ModelProb)) + 
+                   geom_roc(n.cuts = 20, labelsize = 3, labelround = 4)
+
+  basicplot<- basicplot  +
+    #geom_rocci(ci.at = quantile(donneesModel$ModelProb, c(seq(0.1,1,0.1))), alpha.box = 0.05,sig.level = .5, labelround = 8) +
+    style_roc(xlab='Le taux de faux Positifs(1 - Specificity)',
+              ylab='Le taux de vrais positifs(Sensitivity)',
+              theme = theme_grey)+
+    annotate("text",x=0.5,y=0.5,
+              label="AUC <= 0.5 pr?diction pire qu'au hasard",
+              color="red",size=6, angle=45) +
+    ggtitle( paste('Surface sous courbe ROC (AUC) : ',round(calc_auc(basicplot)$AUC,8),"% --",Title)) + 
+    coord_fixed(ratio = 1)
+
+  donneesModel$Label = rep(paste(Title," : ",round(calc_auc(basicplot)$AUC,4),"%"),length(ModelCible))
+
+  donneesModelROCALL <<- rbind(df,donneesModel)
+
+  basicplot
+}
+```
+
+
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+set.seed(seed)
+validationIndex <- createDataPartition(donnees$Cible, p=0.80, list=FALSE)
+```
+
+# ?chantillon de validation
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+echantillonApprentissage <- donnees[validationIndex,]
+```
+
+# ?chantillon d'apprentissage
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+echantillonValidation <- donnees[-validationIndex,]
+```
+
+Initialisation variable mod?ls 
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+models <- NULL 
+prediction <- NULL
+prediction.Probabilite<-NULL
+```
+
+
+# Logistic Regression 
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+suppressMessages(library(mlbench))
+```
+
+## application du mod?le ? un jeu de donn?es
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+models$glm <- glm(Cible~., data=echantillonApprentissage, family=binomial(link='logit'))
+```
+
+## r?sumer les caract?ristiques du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+print(models$glm)
+```
+
+## pr?dictions du mod?le 
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"} 
+probabilities <- predict(models$glm, echantillonValidation, type='response')
+prediction.Probabilite$glm <- probabilities
+prediction$glm <- as.factor(ifelse(probabilities > 0.5,'M','B'))
+```
+
+## r?sumer l'exactitude du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+caret::confusionMatrix(prediction$glm, echantillonValidation$Cible)
+```
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%", fig.width =20, fig.height=20}
+fun.auc.ggplot(prediction.Probabilite$glm, echantillonValidation$Cible,'Logistic Regression ')
+```
+#Classification and Regression Trees
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+suppressMessages(library(rpart))
+```
+
+## application du mod?le ? un jeu de donn?es
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+models$rpart <- rpart(Cible~., data=echantillonApprentissage)
+```
+
+## r?sumer les caract?ristiques du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+print(models$rpart)
+```
+
+## pr?dictions du mod?le 
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"} 
+prediction$rpart <- predict(models$rpart, echantillonValidation, type="class")
+prediction.Probabilite$rpart <- predict(models$rpart, echantillonValidation, type="prob")
+```
+
+## r?sumer l'exactitude du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+confusionMatrix(prediction$rpart, echantillonValidation$Cible)
+```
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%", fig.width =20, fig.height=20}
+fun.auc.ggplot(prediction.Probabilite$rpart[,2], echantillonValidation$Cible,'Classification and Regression Trees')
+```
+
+# k-Nearest Neighbors
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+suppressMessages(library(caret))
+```
+
+## application du mod?le ? un jeu de donn?es
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+models$knn3 <- knn3(Cible~., data=echantillonApprentissage, k=5)
+```
+
+## r?sumer les caract?ristiques du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+print(models$knn3)
+```
+
+## pr?dictions du mod?le 
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"} 
+prediction$knn3 <- predict(models$knn3, echantillonValidation, type="class")
+prediction.Probabilite$knn3 <- predict(models$knn3, echantillonValidation, type="prob")
+```
+
+## r?sumer l'exactitude du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+caret::confusionMatrix(prediction$knn3, echantillonValidation$Cible)
+```
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%", fig.width =20, fig.height=20}
+fun.auc.ggplot(prediction.Probabilite$knn3[,2],echantillonValidation$Cible,'k-Nearest Neighbors')
+```
+
+# Naive Bayes
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+suppressMessages(library(e1071))
+```
+
+## application du mod?le ? un jeu de donn?es
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+models$naiveBayes <- naiveBayes(Cible~., data=echantillonApprentissage)
+```
+
+## r?sumer les caract?ristiques du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+print(models$naiveBayes)
+```
+
+## pr?dictions du mod?le 
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"} 
+prediction$naiveBayes <- predict(models$naiveBayes, echantillonValidation,type="class")
+prediction.Probabilite$naiveBayes <- predict(models$naiveBayes, echantillonValidation,type="raw")
+```
+
+## r?sumer l'exactitude du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+confusionMatrix(prediction$naiveBayes, echantillonValidation$Cible)
+```
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%", fig.width =20, fig.height=20}
+fun.auc.ggplot(prediction.Probabilite$naiveBayes[,2], echantillonValidation$Cible,'Naive Bayes')
+```
+
+
+# Bagging CART
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+suppressMessages(library(ipred))
+```
+
+## application du mod?le ? un jeu de donn?es
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+models$bagging <- bagging(Cible~., data=echantillonApprentissage)
+```
+
+## r?sumer les caract?ristiques du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+print(models$bagging)
+```
+
+## pr?dictions du mod?le 
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"} 
+prediction$bagging <- predict(models$bagging, echantillonValidation, type="class")
+prediction.Probabilite$bagging <- predict(models$bagging, echantillonValidation, type="prob")
+```
+
+## r?sumer l'exactitude du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+confusionMatrix(prediction$bagging, echantillonValidation$Cible)
+```
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%", fig.width =20, fig.height=20}
+fun.auc.ggplot(prediction.Probabilite$bagging[,2], echantillonValidation$Cible,'Bagging CART')
+```
+
+
+# Gradient Boosted Machine
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+suppressMessages(library(gbm))
+```
+
+## application du mod?le ? un jeu de donn?es
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+models$gbm <- gbm(Cible~., data=echantillonApprentissage, distribution="multinomial")
+```
+
+## r?sumer les caract?ristiques du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+print(models$gbm)
+```
+
+## pr?dictions du mod?le 
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"} 
+probabilities <- predict(models$gbm, echantillonValidation, n.trees=1, type="response")
+prediction.Probabilite$gbm <- probabilities
+prediction$gbm <-  as.factor(colnames(probabilities)[apply(probabilities, 1, which.max)])
+```
+
+## r?sumer l'exactitude du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+caret::confusionMatrix(prediction$gbm, echantillonValidation$Cible)
+```
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%", fig.width =20, fig.height=20}
+fun.auc.ggplot(prediction.Probabilite$gbm[,2,1], echantillonValidation$Cible,'Gradient Boosted Machine')
+```
+
+# Random Forest
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+suppressMessages(library(randomForest))
+```
+
+## application du mod?le ? un jeu de donn?es
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+models$randomForest <- randomForest(Cible~., data=echantillonApprentissage)
+```
+
+## r?sumer les caract?ristiques du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+print(models$randomForest)
+```
+
+## pr?dictions du mod?le 
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"} 
+prediction$randomForest <- predict(models$randomForest, echantillonValidation,type="class")
+prediction.Probabilite$randomForest <- predict(models$randomForest, echantillonValidation,type="prob")
+```
+
+## r?sumer l'exactitude du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+caret::confusionMatrix(prediction$randomForest, echantillonValidation$Cible)
+```
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%", fig.width =20, fig.height=20}
+fun.auc.ggplot(prediction.Probabilite$randomForest[,2], echantillonValidation$Cible,'Random Forest')
+```
+
+
+# Support Vector Machine
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+suppressMessages(library(kernlab))
+```
+
+## application du mod?le ? un jeu de donn?es
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+#models$ksvm <- ksvm(Cible~., data=echantillonApprentissage)
+models$ksvm <- ksvm(Cible~., data=echantillonApprentissage, prob.model=T)
+```
+
+## r?sumer les caract?ristiques du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+print(models$ksvm)
+```
+
+## pr?dictions du mod?le 
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"} 
+prediction$ksvm <- predict(models$ksvm, echantillonValidation, type="response")
+prediction.Probabilite$ksvm <- predict(models$ksvm, echantillonValidation, type="probabilities")
+```
+
+## r?sumer l'exactitude du mod?le
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%"}
+confusionMatrix(prediction$ksvm, echantillonValidation$Cible)
+```
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%", fig.width =20, fig.height=20}
+fun.auc.ggplot(prediction.Probabilite$ksvm[,2], echantillonValidation$Cible,'Support Vector Machine')
+```
+
+# Comparaison
+
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%", fig.width =20, fig.height=20}
+resultatsAUC <- caTools::colAUC(sapply(prediction,as.integer), echantillonValidation$Cible, plotROC = TRUE, alg=c("Wilcoxon","ROC"))
+```
+
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%", fig.width =20, fig.height=20}
+resultatsAUC
+```
+
+
+```{r fig.align = 'default', message=FALSE, warning=FALSE, out.width="800%", out.height="800%", fig.width =18, fig.height=18}
+  
+  basicplot <- ggplot(donneesModelROCALL, aes(d = Cible, m = ModelProb, color = Label)) + 
+                   geom_roc(n.cuts = 0)#20, labelsize = 3, labelround = 2)
+  
+  basicplot<- basicplot  +
+      style_roc(xlab='Le taux de faux Positifs(1 - Specificity)',
+                ylab='Le taux de vrais positifs(Sensitivity)',theme = theme_grey)+
+      annotate("text",x=0.5,y=0.5,label="AUC <= 0.5 pr?diction pire qu'au hasard",color="red",size=6, angle=45) +
+      ggtitle( 'Surface sous courbe ROC (AUC) : ') + 
+      coord_fixed(ratio = 1)
+    
+  basicplot
+```
+
