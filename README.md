@@ -12,6 +12,12 @@
 https://www.anaconda.com/download/success
 
 ## Environnement Python
+Mise à jour des librairies de l’environnement base
+```
+conda activate root
+conda update --all
+python -m pip install --upgrade pip
+```
 
 ### Windows
 ```
