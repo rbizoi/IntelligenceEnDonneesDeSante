@@ -15,26 +15,25 @@ https://www.anaconda.com/download/success
 
 ### Windows
 ```
-conda create -n cours python==3.10 ipython ipython-sql jupyter notebook numpy==1.23.5 pandas pyyaml==5.4.1 pyarrow scikit-image scikit-learn matplotlib seaborn  tifffile portpicker biopython Flask==2.0.2 Flask-Caching==1.10.1 Flask-Compress==1.10.1 flatbuffers  redis colour pydot pygraphviz pyyaml imgaug tifffile imagecodecs pyspark sqlalchemy
+conda create -n cours -c conda-forge  python==3.12 ipython ipython-sql jupyter notebook numpy pandas pyarrow matplotlib seaborn portpicker biopython flatbuffers redis colour pydot pygraphviz pyyaml pyspark folium scikit-image scikit-learn yellowbrick lightgbm xgboost catboost plotly imgaug tifffile imagecodecs kneed imbalanced-learn 
 
 conda activate cours
-# conda remove -n cours --all -y
+#conda remove -n cours --all -y
 
-pip install ipython-sql sql psycopg2
-pip uninstall matplotlib seaborn
-pip install matplotlib seaborn opencv-python-headless
+#pip install ipython-sql sql psycopg2
+#pip uninstall matplotlib seaborn
+#pip install matplotlib seaborn opencv-python-headless
 ```
 
 ### Linux
 
 ```
-conda create -p /home/utilisateur/anaconda3/envs/cours python==3.10 ipython ipython-sql jupyter notebook numpy==1.23.5 pandas pyyaml==5.4.1 pyarrow scikit-image scikit-learn matplotlib seaborn  tifffile portpicker biopython Flask==2.0.2 Flask-Caching==1.10.1 Flask-Compress==1.10.1 flatbuffers  redis colour pydot pygraphviz pyyaml imgaug tifffile imagecodecs pyspark sqlalchemy
-
+conda create -p /home/utilisateur/anaconda3/envs/cours -c conda-forge  python==3.12 ipython ipython-sql jupyter notebook numpy pandas pyarrow matplotlib seaborn portpicker biopython flatbuffers redis colour pydot pygraphviz pyyaml pyspark folium scikit-image scikit-learn yellowbrick lightgbm xgboost catboost plotly imgaug tifffile imagecodecs kneed imbalanced-learn
 conda activate cours
 # conda remove -n cours --all -y
 
-pip install ipython-sql sql psycopg2
-pip uninstall matplotlib seaborn
-pip install matplotlib seaborn opencv-python-headless
+#pip install ipython-sql sql psycopg2
+#pip uninstall matplotlib seaborn
+#pip install matplotlib seaborn opencv-python-headless
 ```
 
